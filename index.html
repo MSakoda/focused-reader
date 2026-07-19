@@ -16,6 +16,8 @@
     --orp: #e5484d;
     --rail: #3a3a46;
     --accent: #e8e6e1;
+    --flow-dim: #6b6976;
+    --flow-active: #ffffff;
   }
   [data-theme="light"] {
     --bg: #fafaf8;
@@ -27,6 +29,8 @@
     --orp: #d3373d;
     --rail: #cfcec8;
     --accent: #23222a;
+    --flow-dim: #a8a7ae;
+    --flow-active: #000000;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
@@ -112,13 +116,96 @@
   .word-row {
     display: flex; align-items: baseline;
     font-family: Charter, Georgia, Cambria, "Times New Roman", serif;
-    font-size: clamp(28px, 9vw, 46px);
+    font-size: var(--word-fs, 40px);
     line-height: 1;
   }
   .word-row .pre  { flex: 1 1 0; text-align: right; white-space: pre; overflow: visible; }
   .word-row .post { flex: 1 1 0; text-align: left;  white-space: pre; overflow: visible; }
   .word-row .orp  { color: var(--orp); flex: 0 0 auto; }
-  .word-row.small { font-size: clamp(20px, 6.5vw, 34px); }
+  .word-row.small { font-size: calc(var(--word-fs, 40px) * 0.72); }
+
+  /* ---------- Flow stage (page / line modes) ---------- */
+  .flow-stage {
+    flex: 1; display: none; flex-direction: column;
+    justify-content: center; align-items: center;
+    overflow: hidden; cursor: pointer; user-select: none; -webkit-user-select: none;
+  }
+  .flow-stage.active { display: flex; }
+  .flow-viewport { position: relative; width: 100%; overflow: hidden; }
+  .flow-content {
+    position: absolute; top: 0; left: 0;
+    font-family: Charter, Georgia, Cambria, "Times New Roman", serif;
+    font-size: var(--flow-fs, 19px);
+    line-height: var(--flow-lh, 1.85);
+    color: var(--flow-dim);
+    text-align: left;
+    will-change: transform;
+  }
+  .flow-word { color: var(--flow-dim); }
+  .flow-cur { color: var(--flow-active); }
+  .flow-orp { color: var(--orp); flex: 0 0 auto; }
+
+  .flow-lines {
+    position: absolute; top: 0; left: 0; display: none;
+    font-family: Charter, Georgia, Cambria, "Times New Roman", serif;
+    font-size: var(--flow-fs, 19px);
+    color: var(--flow-dim);
+  }
+  .fl-line {
+    height: var(--flow-lh-px, 35px); line-height: var(--flow-lh-px, 35px);
+    white-space: pre; overflow: hidden;
+  }
+  .fl-center { display: flex; align-items: baseline; }
+  .fl-half { flex: 1 1 0; min-width: 0; display: flex; align-items: baseline; overflow: hidden; }
+  .fl-half.l { justify-content: flex-end; }
+  .fl-half.r { justify-content: flex-start; }
+  /* neighbours may shrink and clip; the current word never does. the inner span is
+     non-shrinkable so any clipping happens on the outer edge, away from the current word */
+  .fl-nb { flex: 0 1 auto; min-width: 0; overflow: hidden; display: flex; }
+  .fl-half.l .fl-nb { justify-content: flex-end; }
+  .fl-half.r .fl-nb { justify-content: flex-start; }
+  .fl-nbt { flex: 0 0 auto; white-space: pre; }
+  .fl-cur { flex: 0 0 auto; white-space: pre; color: var(--flow-active); }
+  .fl-measure {
+    position: absolute; visibility: hidden; left: -9999px; top: 0; white-space: pre;
+    font-family: Charter, Georgia, Cambria, "Times New Roman", serif;
+    font-size: var(--flow-fs, 19px);
+  }
+  .flow-fade { position: absolute; pointer-events: none; }
+  .flow-fade.top    { top: 0; left: 0; right: 0; height: 26%; background: linear-gradient(var(--bg), transparent); }
+  .flow-fade.bottom { bottom: 0; left: 0; right: 0; height: 26%; background: linear-gradient(transparent, var(--bg)); }
+  .flow-stage.line-mode .flow-fade.top    { height: 42%; background: linear-gradient(var(--bg) 42%, transparent); }
+  .flow-stage.line-mode .flow-fade.bottom { height: 42%; background: linear-gradient(transparent, var(--bg) 58%); }
+  .flow-anchor { position: absolute; top: 0; left: 0; width: 0; height: 0; pointer-events: none; }
+  .fa-bar {
+    position: absolute; left: 0; width: 2px; height: 9px;
+    background: var(--flow-active); border-radius: 1px; transform: translateX(-1px);
+  }
+
+  .mode-row { display: flex; gap: 8px; }
+  .mode-btn {
+    flex: 1; padding: 9px; border-radius: 9px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--muted); font-size: 12.5px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  .mode-btn.on { color: var(--ink); border-color: var(--muted); background: var(--surface-2); }
+
+  .set-row { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .set-row .set-label { flex: 0 0 78px; font-size: 13px; color: var(--muted); }
+  .set-row .mode-row { flex: 1; }
+  .stepper { flex: 1; display: flex; align-items: center; gap: 10px; }
+  .step-btn {
+    width: 42px; height: 38px; border-radius: 9px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--ink); font-size: 19px; line-height: 1;
+    cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center;
+  }
+  .step-btn:active { background: var(--surface-2); }
+  .step-btn:disabled { opacity: 0.35; cursor: default; }
+  .step-val {
+    flex: 1; text-align: center; font-size: 14px; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  #ctxRow.hidden { display: none; }
 
   .tap-hint { position: absolute; bottom: 14px; left: 0; right: 0; text-align: center; font-size: 11.5px; color: var(--muted); opacity: 0.8; }
   .chapter-flash {
@@ -271,6 +358,7 @@
     </button>
     <button class="icon-btn" id="bookViewOpen" aria-label="Full book view">▤</button>
     <button class="icon-btn" id="searchOpen" aria-label="Search book">⌕</button>
+    <button class="icon-btn" id="settingsOpen" aria-label="Settings">⚙</button>
     <button class="icon-btn" id="themeBtn">◐</button>
   </div>
 
@@ -288,6 +376,20 @@
     <div class="chapter-flash" id="chapterFlash"></div>
   </div>
 
+  <div class="flow-stage" id="flowStage">
+    <div class="flow-viewport" id="flowViewport">
+      <div class="flow-content" id="flowContent"></div>
+      <div class="flow-lines" id="flowLines"></div>
+      <span class="fl-measure" id="flowMeasure" aria-hidden="true"></span>
+      <div class="flow-fade top"></div>
+      <div class="flow-fade bottom"></div>
+      <div class="flow-anchor" id="flowAnchor">
+        <div class="fa-bar top"></div>
+        <div class="fa-bar bottom"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="controls">
     <div class="scrub-row">
       <input type="range" id="scrub" min="0" max="100" value="0">
@@ -297,18 +399,6 @@
       <button class="jump-btn" id="back15">‹ 15 words</button>
       <button class="play-btn" id="playBtn">▶</button>
       <button class="jump-btn" id="exportBtn">Export</button>
-    </div>
-    <div class="sliders">
-      <div class="slider-row">
-        <label>Speed</label>
-        <input type="range" id="wpmSlider" min="100" max="800" step="10" value="300">
-        <span class="val" id="wpmVal">300 wpm</span>
-      </div>
-      <div class="slider-row">
-        <label>Pauses</label>
-        <input type="range" id="pauseSlider" min="0" max="200" step="10" value="100">
-        <span class="val" id="pauseVal">1.0×</span>
-      </div>
     </div>
   </div>
 </div>
@@ -375,6 +465,55 @@
   </div>
 </div>
 
+<div class="modal-wrap" id="settingsModal">
+  <div class="modal">
+    <h2>Settings</h2>
+    <div class="set-row">
+      <div class="set-label">Display</div>
+      <div class="mode-row">
+        <button class="mode-btn on" data-mode="word">Word</button>
+        <button class="mode-btn" data-mode="page">Page</button>
+        <button class="mode-btn" data-mode="line">Line</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <div class="set-label">Speed</div>
+      <div class="stepper">
+        <button class="step-btn" data-set="wpm" data-dir="-1">−</button>
+        <div class="step-val" id="setWpm">300 wpm</div>
+        <button class="step-btn" data-set="wpm" data-dir="1">+</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <div class="set-label">Pauses</div>
+      <div class="stepper">
+        <button class="step-btn" data-set="pauseIntensity" data-dir="-1">−</button>
+        <div class="step-val" id="setPause">1.0×</div>
+        <button class="step-btn" data-set="pauseIntensity" data-dir="1">+</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <div class="set-label">Text size</div>
+      <div class="stepper">
+        <button class="step-btn" data-set="fontSize" data-dir="-1">−</button>
+        <div class="step-val" id="setFont">19 px</div>
+        <button class="step-btn" data-set="fontSize" data-dir="1">+</button>
+      </div>
+    </div>
+    <div class="set-row" id="ctxRow">
+      <div class="set-label">Context</div>
+      <div class="stepper">
+        <button class="step-btn" data-set="ctxLines" data-dir="-1">−</button>
+        <div class="step-val" id="setCtx">±2 lines</div>
+        <button class="step-btn" data-set="ctxLines" data-dir="1">+</button>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn primary" id="settingsClose">Done</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>/*!
@@ -424,7 +563,7 @@ const setMeta = (k, v) => idb("meta", "readwrite", s => s.put(v, k));
 const getMeta = k => idb("meta", "readonly", s => s.get(k));
 
 /* ============ State ============ */
-let settings = { wpm: 300, pauseIntensity: 1.0, theme: "dark" };
+let settings = { wpm: 300, pauseIntensity: 1.0, theme: "dark", mode: "word", fontSize: 19, ctxLines: 2 };
 let book = null;          // {id,title,author,words,chapters}
 let idx = 0;
 let playing = false;
@@ -440,6 +579,7 @@ function toast(msg) {
 }
 
 /* ============ Settings persistence ============ */
+const SET_BOUNDS = { wpm: [100, 800, 25], pauseIntensity: [0, 2, 0.1], fontSize: [14, 34, 1], ctxLines: [2, 6, 1] };
 async function loadSettings() {
   const s = await getMeta("settings");
   if (s) settings = Object.assign(settings, s);
@@ -449,9 +589,23 @@ async function loadSettings() {
 function saveSettings() { setMeta("settings", settings); }
 function applyTheme() { document.body.dataset.theme = settings.theme; }
 function syncSettingUI() {
-  wpmSlider.value = settings.wpm; wpmVal.textContent = settings.wpm + " wpm";
-  pauseSlider.value = Math.round(settings.pauseIntensity * 100);
-  pauseVal.textContent = settings.pauseIntensity.toFixed(1) + "×";
+  document.getElementById("setWpm").textContent = settings.wpm + " wpm";
+  document.getElementById("setPause").textContent = settings.pauseIntensity.toFixed(1) + "×";
+  document.getElementById("setFont").textContent = settings.fontSize + " px";
+  document.getElementById("setCtx").textContent = "±" + settings.ctxLines + " lines";
+  document.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("on", b.dataset.mode === settings.mode));
+  document.getElementById("ctxRow").classList.toggle("hidden", settings.mode === "word");
+  document.querySelectorAll(".step-btn").forEach(b => {
+    const [min, max] = SET_BOUNDS[b.dataset.set];
+    const v = settings[b.dataset.set];
+    b.disabled = +b.dataset.dir < 0 ? v <= min + 1e-9 : v >= max - 1e-9;
+  });
+  applyTextMetrics();
+}
+function applyTextMetrics() {
+  const r = document.documentElement;
+  r.style.setProperty("--flow-fs", settings.fontSize + "px");
+  r.style.setProperty("--word-fs", Math.round(Math.min(Math.max(settings.fontSize * 2.1, 24), 62)) + "px");
 }
 
 /* ============ EPUB parsing ============ */
@@ -603,6 +757,7 @@ async function openBook(id) {
   document.getElementById("scrub").max = book.words.length - 1;
   setMeta("lastBook", id);
   showScreen("readerScreen");
+  applyMode();
   renderWord();
 }
 function showScreen(name) {
@@ -623,6 +778,14 @@ function orpIndex(len) {
   return 4;
 }
 function renderWord() {
+  if (settings.mode === "word") renderRsvpWord(); else renderFlow();
+  const ch = currentChapter();
+  document.getElementById("rdChapter").textContent = ch ? ch.title : "";
+  const scrub = document.getElementById("scrub");
+  if (document.activeElement !== scrub) scrub.value = idx;
+  document.getElementById("scrubPct").textContent = (idx / (book.words.length - 1) * 100).toFixed(1) + "%";
+}
+function renderRsvpWord() {
   const w = book.words[idx] || "";
   // strip surrounding punctuation for ORP targeting but display full word
   const core = w.replace(/^[^A-Za-z0-9\u00C0-\u024F]+/, "");
@@ -633,11 +796,219 @@ function renderWord() {
   document.getElementById("wOrp").textContent = w[o] || "";
   document.getElementById("wPost").textContent = w.slice(o + 1);
   document.getElementById("wordRow").classList.toggle("small", w.length > 14);
-  const ch = currentChapter();
-  document.getElementById("rdChapter").textContent = ch ? ch.title : "";
-  const scrub = document.getElementById("scrub");
-  if (document.activeElement !== scrub) scrub.value = idx;
-  document.getElementById("scrubPct").textContent = (idx / (book.words.length - 1) * 100).toFixed(1) + "%";
+}
+
+/* ============ Flow modes (page / line) ============ */
+const FLOW_WIN = 500, FLOW_EDGE = 90;
+let flowStart = 0, flowEnd = 0, flowCurEl = null;
+let flowLh = 35, flowEffCtx = 2;
+
+/* --- text measurement: uses a hidden element with the same font as the rendered
+       text, so widths match the browser's own layout exactly --- */
+let measFont = "", measCache = new Map();
+function ensureMeasure() {
+  const font = settings.fontSize + "px";
+  if (measFont !== font) { measFont = font; measCache.clear(); }
+}
+function measure(s) {
+  let v = measCache.get(s);
+  if (v === undefined) {
+    flowMeasure.textContent = s;
+    v = flowMeasure.getBoundingClientRect().width;
+    measCache.set(s, v);
+  }
+  return v;
+}
+/* assembled lines are unique per position, so measure them without polluting the cache */
+function measureRaw(s) {
+  flowMeasure.textContent = s;
+  return flowMeasure.getBoundingClientRect().width;
+}
+function orpPos(w) {
+  const core = w.replace(/^[^A-Za-z0-9\u00C0-\u024F]+/, "");
+  const lead = w.length - core.length;
+  const letters = core.replace(/[^A-Za-z0-9\u00C0-\u024F].*$/, "") || core || w;
+  return Math.min(lead + orpIndex(letters.length || w.length), w.length - 1);
+}
+function orpSplitHtml(w) {
+  const o = orpPos(w);
+  return esc(w.slice(0, o)) + '<span class="flow-orp">' + esc(w[o] || "") + "</span>" + esc(w.slice(o + 1));
+}
+
+/* --- PAGE MODE: current word pinned dead center, neighbours filled around it --- */
+function renderPage() {
+  ensureMeasure();
+  const words = book.words, len = words.length;
+  const usable = flowLines.clientWidth;
+  if (!usable) return;
+  const spaceW = measure(" ");
+  const w = words[idx];
+  const o = orpPos(w);
+  const pre = w.slice(0, o), orpCh = w[o] || "", post = w.slice(o + 1);
+  // flex gives each side an equal half, so the ORP letter lands exactly on centre.
+  // a small margin absorbs sub-pixel differences at the join.
+  const half = (usable - measure(orpCh)) / 2 - 3;
+
+  // Fill leftwards, then confirm against the exact string that will be rendered.
+  // Summing per-word widths drifts from the real width of the joined string, and any
+  // shortfall would make the neighbour text shrink and clip right against the current word.
+  const budgetL = half - measure(pre);
+  const left = [];
+  let approx = 0, i = idx - 1;
+  while (i >= 0) {
+    const ww = measure(words[i]);
+    if (approx + spaceW + ww > budgetL) break;
+    approx += spaceW + ww; left.unshift(words[i]); i--;
+  }
+  while (left.length && measureRaw(left.join(" ") + " ") > budgetL) left.shift();
+  i = idx - left.length - 1;
+
+  // fill rightwards, same exact-fit confirmation
+  const budgetR = half - measure(post);
+  const right = [];
+  approx = 0;
+  let j = idx + 1;
+  while (j < len) {
+    const ww = measure(words[j]);
+    if (approx + spaceW + ww > budgetR) break;
+    approx += spaceW + ww; right.push(words[j]); j++;
+  }
+  while (right.length && measureRaw(" " + right.join(" ")) > budgetR) right.pop();
+  j = idx + right.length + 1;
+
+  // context lines above, filled backwards
+  const above = [];
+  let end = i;
+  for (let n = 0; n < flowEffCtx; n++) {
+    if (end < 0) { above.unshift(""); continue; }
+    let u = 0, st = end;
+    while (st >= 0) {
+      const add = (u === 0 ? 0 : spaceW) + measure(words[st]);
+      if (u + add > usable) break;
+      u += add; st--;
+    }
+    let line = words.slice(st + 1, end + 1);
+    while (line.length > 1 && measureRaw(line.join(" ")) > usable) { line = line.slice(1); st++; }
+    above.unshift(line.join(" "));
+    end = st;
+  }
+  // context lines below
+  const below = [];
+  let start = j;
+  for (let n = 0; n < flowEffCtx; n++) {
+    if (start >= len) { below.push(""); continue; }
+    let u = 0, k = start;
+    while (k < len) {
+      const add = (u === 0 ? 0 : spaceW) + measure(words[k]);
+      if (u + add > usable) break;
+      u += add; k++;
+    }
+    let line = words.slice(start, k);
+    while (line.length > 1 && measureRaw(line.join(" ")) > usable) { line = line.slice(0, -1); k--; }
+    below.push(line.join(" "));
+    start = k;
+  }
+
+  let html = "";
+  for (const t of above) html += '<div class="fl-line">' + esc(t) + "</div>";
+  html += '<div class="fl-line fl-center">' +
+    '<span class="fl-half l">' +
+      '<span class="fl-nb"><span class="fl-nbt">' + (left.length ? esc(left.join(" ")) + " " : "") + "</span></span>" +
+      '<span class="fl-cur">' + esc(pre) + "</span>" +
+    "</span>" +
+    '<span class="flow-orp">' + esc(orpCh) + "</span>" +
+    '<span class="fl-half r">' +
+      '<span class="fl-cur">' + esc(post) + "</span>" +
+      '<span class="fl-nb"><span class="fl-nbt">' + (right.length ? " " + esc(right.join(" ")) : "") + "</span></span>" +
+    "</span>" +
+    "</div>";
+  for (const t of below) html += '<div class="fl-line">' + esc(t) + "</div>";
+  flowLines.innerHTML = html;
+}
+
+/* --- LINE MODE: word travels along a fixed line, lines feed upward --- */
+function flowBuildWindow() {
+  const len = book.words.length;
+  flowStart = Math.max(0, idx - Math.floor(FLOW_WIN / 2));
+  flowEnd = Math.min(len, flowStart + FLOW_WIN);
+  if (flowEnd - flowStart < FLOW_WIN) flowStart = Math.max(0, flowEnd - FLOW_WIN);
+  let html = "";
+  for (let i = flowStart; i < flowEnd; i++) {
+    const inner = i === idx ? orpSplitHtml(book.words[i]) : esc(book.words[i]);
+    html += '<span class="flow-word' + (i === idx ? " flow-cur" : "") + '" data-i="' + i + '">' + inner + "</span> ";
+  }
+  flowContent.innerHTML = html;
+  flowCurEl = flowContent.querySelector(".flow-cur");
+}
+function flowPosition() {
+  if (!flowCurEl) return;
+  const vh = flowViewport.clientHeight;
+  const cy = flowCurEl.offsetTop + flowCurEl.offsetHeight / 2;
+  flowContent.style.transform = "translate3d(0," + (vh / 2 - cy).toFixed(2) + "px,0)";
+  const orpEl = flowCurEl.querySelector(".flow-orp");
+  const target = orpEl || flowCurEl;
+  const ax = target.offsetLeft + target.offsetWidth / 2;
+  flowAnchor.style.transform = "translate3d(" + ax.toFixed(2) + "px," + (vh / 2).toFixed(2) + "px,0)";
+}
+function renderLineMode() {
+  const el = flowContent.firstChild
+    ? flowContent.querySelector('.flow-word[data-i="' + idx + '"]')
+    : null;
+  const nearStart = idx < flowStart + FLOW_EDGE && flowStart > 0;
+  const nearEnd = idx >= flowEnd - FLOW_EDGE && flowEnd < book.words.length;
+  if (!el || nearStart || nearEnd) { flowBuildWindow(); flowPosition(); return; }
+  if (flowCurEl && flowCurEl !== el) {
+    flowCurEl.classList.remove("flow-cur");
+    flowCurEl.textContent = book.words[+flowCurEl.dataset.i];
+  }
+  flowCurEl = el;
+  el.classList.add("flow-cur");
+  el.innerHTML = orpSplitHtml(book.words[idx]);
+  flowPosition();
+}
+
+function renderFlow() {
+  if (settings.mode === "page") renderPage(); else renderLineMode();
+}
+function flowApplyMetrics() {
+  const vpW = flowStage.clientWidth;
+  const pad = Math.round(Math.min(28, vpW * 0.06));
+  flowLh = Math.round(settings.fontSize * 1.85);
+  document.documentElement.style.setProperty("--flow-lh-px", flowLh + "px");
+  for (const el of [flowContent, flowLines]) {
+    el.style.width = vpW + "px";
+    el.style.paddingLeft = pad + "px";
+    el.style.paddingRight = pad + "px";
+  }
+  const avail = flowStage.clientHeight || window.innerHeight * 0.5;
+  let fit = Math.floor(avail / flowLh);
+  if (fit % 2 === 0) fit -= 1;
+  fit = Math.max(1, fit);
+  flowEffCtx = Math.min(settings.ctxLines, (fit - 1) / 2);
+  const h = (flowEffCtx * 2 + 1) * flowLh;
+  flowViewport.style.height = h + "px";
+  // page mode pins the word, so the anchor bars stay fixed at the centre
+  if (settings.mode === "page") {
+    flowAnchor.style.transform = "translate3d(" + (vpW / 2).toFixed(2) + "px," + (h / 2).toFixed(2) + "px,0)";
+  }
+  const barGap = Math.round(flowLh * 0.42);
+  faTop.style.top = (-barGap - 9) + "px";
+  faBot.style.top = barGap + "px";
+}
+function applyMode() {
+  const isWord = settings.mode === "word";
+  const isPage = settings.mode === "page";
+  document.getElementById("stage").style.display = isWord ? "flex" : "none";
+  flowStage.classList.toggle("active", !isWord);
+  flowStage.classList.toggle("line-mode", settings.mode === "line");
+  flowContent.style.display = isPage ? "none" : "block";
+  flowLines.style.display = isPage ? "block" : "none";
+  document.getElementById("ctxRow").classList.toggle("hidden", isWord);
+  if (!isWord && book) {
+    flowApplyMetrics();
+    if (isPage) renderPage();
+    else { flowBuildWindow(); requestAnimationFrame(() => flowPosition()); }
+  }
 }
 
 /* pause multipliers */
@@ -706,7 +1077,10 @@ function makeConfig() {
     index: book ? idx : null,
     wpm: settings.wpm,
     pauseIntensity: settings.pauseIntensity,
-    theme: settings.theme
+    theme: settings.theme,
+    mode: settings.mode,
+    fontSize: settings.fontSize,
+    ctxLines: settings.ctxLines
   });
 }
 async function applyConfig(txt) {
@@ -716,7 +1090,10 @@ async function applyConfig(txt) {
   if (typeof c.wpm === "number") settings.wpm = Math.min(Math.max(c.wpm, 100), 800);
   if (typeof c.pauseIntensity === "number") settings.pauseIntensity = Math.min(Math.max(c.pauseIntensity, 0), 2);
   if (c.theme === "light" || c.theme === "dark") settings.theme = c.theme;
-  applyTheme(); syncSettingUI(); saveSettings();
+  if (c.mode === "word" || c.mode === "page" || c.mode === "line") settings.mode = c.mode;
+  if (typeof c.fontSize === "number") settings.fontSize = Math.min(Math.max(Math.round(c.fontSize), 14), 34);
+  if (typeof c.ctxLines === "number") settings.ctxLines = Math.min(Math.max(Math.round(c.ctxLines), 2), 6);
+  applyTheme(); syncSettingUI(); saveSettings(); applyMode();
   if (c.book) {
     const books = await allBooks();
     const match = books.find(b => b.title.toLowerCase() === String(c.book).toLowerCase());
@@ -735,10 +1112,14 @@ async function applyConfig(txt) {
 }
 
 /* ============ Wire-up ============ */
-const wpmSlider = document.getElementById("wpmSlider");
-const wpmVal = document.getElementById("wpmVal");
-const pauseSlider = document.getElementById("pauseSlider");
-const pauseVal = document.getElementById("pauseVal");
+const flowStage = document.getElementById("flowStage");
+const flowViewport = document.getElementById("flowViewport");
+const flowContent = document.getElementById("flowContent");
+const flowLines = document.getElementById("flowLines");
+const flowMeasure = document.getElementById("flowMeasure");
+const flowAnchor = document.getElementById("flowAnchor");
+const faTop = flowAnchor.querySelector(".fa-bar.top");
+const faBot = flowAnchor.querySelector(".fa-bar.bottom");
 
 document.getElementById("uploadBtn").addEventListener("click", () => document.getElementById("fileInput").click());
 document.getElementById("fileInput").addEventListener("change", async e => {
@@ -766,6 +1147,7 @@ document.getElementById("themeBtn").addEventListener("click", () => {
   applyTheme(); saveSettings();
 });
 document.getElementById("stage").addEventListener("click", () => playing ? pause() : play());
+flowStage.addEventListener("click", () => playing ? pause() : play());
 document.getElementById("playBtn").addEventListener("click", () => playing ? pause() : play());
 document.getElementById("back15").addEventListener("click", () => {
   idx = Math.max(0, idx - 15); renderWord(); saveProgress(true);
@@ -773,15 +1155,49 @@ document.getElementById("back15").addEventListener("click", () => {
 document.getElementById("scrub").addEventListener("input", e => {
   pause(); idx = +e.target.value; renderWord(); saveProgress(true);
 });
-wpmSlider.addEventListener("input", e => {
-  settings.wpm = +e.target.value;
-  wpmVal.textContent = settings.wpm + " wpm";
-  saveSettings();
+document.querySelectorAll(".step-btn").forEach(b => {
+  b.addEventListener("click", () => {
+    const key = b.dataset.set;
+    const [min, max, step] = SET_BOUNDS[key];
+    let v = settings[key] + step * (+b.dataset.dir);
+    v = Math.min(Math.max(Math.round(v / step) * step, min), max);
+    if (key === "pauseIntensity") v = +v.toFixed(1);
+    if (v === settings[key]) return;
+    settings[key] = v;
+    saveSettings();
+    syncSettingUI();
+    if (settings.mode !== "word" && book && (key === "fontSize" || key === "ctxLines")) {
+      flowApplyMetrics();
+      if (settings.mode === "line") flowBuildWindow();
+      renderFlow();
+    }
+  });
 });
-pauseSlider.addEventListener("input", e => {
-  settings.pauseIntensity = +e.target.value / 100;
-  pauseVal.textContent = settings.pauseIntensity.toFixed(1) + "×";
-  saveSettings();
+document.querySelectorAll(".mode-btn").forEach(b => {
+  b.addEventListener("click", () => {
+    if (settings.mode === b.dataset.mode) return;
+    settings.mode = b.dataset.mode;
+    saveSettings();
+    syncSettingUI();
+    applyMode();
+    if (book) renderWord();
+  });
+});
+document.getElementById("settingsOpen").addEventListener("click", () => {
+  pause();
+  syncSettingUI();
+  document.getElementById("settingsModal").classList.add("show");
+});
+document.getElementById("settingsClose").addEventListener("click", () => document.getElementById("settingsModal").classList.remove("show"));
+let resizeT;
+window.addEventListener("resize", () => {
+  if (settings.mode === "word" || !book) return;
+  clearTimeout(resizeT);
+  resizeT = setTimeout(() => {
+    flowApplyMetrics();
+    if (settings.mode === "line") flowBuildWindow();
+    renderFlow();
+  }, 160);
 });
 /* chapter select */
 function openChapterModal() {
