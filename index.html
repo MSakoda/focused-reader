@@ -51,6 +51,8 @@
   }
   .lib-header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
   .lib-header .sub { font-size: 12px; color: var(--muted); }
+  .lib-head-right { display: flex; align-items: center; gap: 4px; }
+  .lib-head-right .sub { max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lib-body { flex: 1; overflow-y: auto; padding: 4px 20px 20px; }
   .book-card {
     background: var(--surface);
@@ -65,12 +67,40 @@
   .book-card .bk-author { font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
   .bk-progress-row { display: flex; align-items: center; gap: 10px; }
   .bk-bar { flex: 1; height: 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden; }
-  .bk-bar > div { height: 100%; background: var(--orp); border-radius: 2px; }
+  .bk-bar > div { height: 100%; background: var(--flow-active); border-radius: 2px; }
   .bk-pct { font-size: 11px; color: var(--muted); min-width: 32px; text-align: right; font-variant-numeric: tabular-nums; }
   .bk-delete {
     margin-top: 8px; font-size: 11.5px; color: var(--muted);
     background: none; border: none; cursor: pointer; padding: 4px 0;
   }
+  .bk-time { margin-top: 6px; font-size: 11px; color: var(--muted); }
+
+  .pct-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .pct-row label { font-size: 12.5px; color: var(--muted); flex: 0 0 auto; }
+  .pct-row input {
+    flex: 1; min-width: 0; background: var(--bg); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 9px; padding: 9px 10px;
+    font-family: inherit; font-size: 13.5px;
+  }
+  .pct-row input:focus { outline: none; border-color: var(--muted); }
+  .pct-sign { font-size: 13px; color: var(--muted); }
+  .pct-row .btn { flex: 0 0 auto; padding: 9px 14px; font-size: 13px; }
+
+  .narr-btn {
+    flex: 1; padding: 9px; border-radius: 9px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--muted); font-size: 12.5px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  .narr-btn.on { color: var(--ink); border-color: var(--muted); background: var(--surface-2); }
+
+  .stat-head { font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .stat-cell {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px;
+  }
+  .stat-cell .sv { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat-cell .sl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .stat-note { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-bottom: 12px; }
   .empty-lib { text-align: center; color: var(--muted); padding: 48px 24px; font-size: 14px; line-height: 1.6; }
   .lib-actions { padding: 12px 20px calc(max(env(safe-area-inset-bottom), 12px) + 8px); display: flex; gap: 10px; border-top: 1px solid var(--line); }
   .btn {
@@ -253,9 +283,6 @@
     display: flex; flex-direction: column; gap: 12px;
     background: var(--bg);
   }
-  .scrub-row { display: flex; align-items: center; gap: 10px; }
-  .scrub-row input[type=range] { flex: 1; }
-  .scrub-pct { font-size: 11px; color: var(--muted); min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
   .ctl-main { display: flex; align-items: center; justify-content: center; gap: 22px; }
   .play-btn {
     width: 60px; height: 60px; border-radius: 50%;
@@ -368,7 +395,10 @@
 <div class="screen active" id="libraryScreen">
   <div class="lib-header">
     <h1>Focused Reader</h1>
-    <span class="sub">RSVP · EPUB</span>
+    <div class="lib-head-right">
+      <span class="sub" id="libAcct"></span>
+      <button class="icon-btn" id="settingsOpenLib" aria-label="Settings">⚙</button>
+    </div>
   </div>
   <div class="lib-body" id="libBody"></div>
   <div class="parsing-note" id="parsingNote" style="display:none">Parsing epub…</div>
@@ -385,7 +415,7 @@
     <button class="icon-btn" id="backBtn">‹ Library</button>
     <button class="rd-titles" id="chapterOpen">
       <div class="rd-book" id="rdBook"></div>
-      <div class="rd-chapter" id="rdChapter"></div>
+      <div class="rd-chapter"><span id="rdChapter"></span> · <span id="rdPct">0.0%</span></div>
     </button>
     <button class="icon-btn" id="bookViewOpen" aria-label="Full book view">▤</button>
     <button class="icon-btn" id="searchOpen" aria-label="Search book">⌕</button>
@@ -428,14 +458,10 @@
   </div>
 
   <div class="controls">
-    <div class="scrub-row">
-      <input type="range" id="scrub" min="0" max="100" value="0">
-      <span class="scrub-pct" id="scrubPct">0.0%</span>
-    </div>
     <div class="ctl-main">
       <button class="jump-btn" id="back15">‹ 15 words</button>
       <button class="play-btn" id="playBtn">▶</button>
-      <button class="jump-btn" id="exportBtn">Export</button>
+      <button class="jump-btn" id="statsBtn">Stats</button>
     </div>
   </div>
 </div>
@@ -494,6 +520,12 @@
 <div class="modal-wrap" id="searchModal">
   <div class="modal">
     <h2>Search book</h2>
+    <div class="pct-row">
+      <label for="pctInput">Skip to</label>
+      <input type="number" id="pctInput" min="0" max="100" step="0.1" inputmode="decimal" placeholder="0–100">
+      <span class="pct-sign">%</span>
+      <button class="btn" id="pctGo">Go</button>
+    </div>
     <input type="text" id="searchInput" class="search-input" placeholder="Type a word or phrase…" autocomplete="off" autocapitalize="none" spellcheck="false">
     <div class="search-results" id="searchResults"><div class="search-hint">Type at least 2 characters.</div></div>
     <div class="btn-row">
@@ -546,6 +578,17 @@
       </div>
     </div>
     <div class="set-row">
+      <div class="set-label">Narration</div>
+      <div class="mode-row">
+        <button class="narr-btn" id="narrOff" data-narr="0">Off</button>
+        <button class="narr-btn on" id="narrOn" data-narr="1">On</button>
+      </div>
+    </div>
+    <div class="set-row" id="voiceRow" style="display:none">
+      <div class="set-label">Voice</div>
+      <select id="voiceSelect" class="dev-input"></select>
+    </div>
+    <div class="set-row">
       <div class="set-label">Account</div>
       <div class="acct-box">
         <div class="acct-status" id="acctStatus">Not signed in</div>
@@ -560,7 +603,21 @@
       <input type="text" id="deviceNameInput" class="dev-input" placeholder="This device" maxlength="40">
     </div>
     <div class="btn-row">
+      <button class="btn" id="exportBtn">Export config</button>
       <button class="btn primary" id="settingsClose">Done</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="statsModal">
+  <div class="modal">
+    <h2>Reading stats</h2>
+    <div class="stat-head" id="statHead"></div>
+    <div class="stat-grid" id="statGrid"></div>
+    <p class="stat-note" id="statNote"></p>
+    <div class="btn-row">
+      <button class="btn" id="statsReset">Reset</button>
+      <button class="btn primary" id="statsClose">Close</button>
     </div>
   </div>
 </div>
@@ -614,7 +671,7 @@ const setMeta = (k, v) => idb("meta", "readwrite", s => s.put(v, k));
 const getMeta = k => idb("meta", "readonly", s => s.get(k));
 
 /* ============ State ============ */
-let settings = { wpm: 300, pauseIntensity: 1.0, theme: "dark", mode: "word", fontSize: 19, ctxLines: 2 };
+let settings = { wpm: 300, pauseIntensity: 1.0, theme: "dark", mode: "word", fontSize: 19, ctxLines: 2, narration: false, voiceURI: "" };
 let book = null;          // {id,title,author,words,chapters}
 let idx = 0;
 let playing = false;
@@ -646,6 +703,9 @@ function syncSettingUI() {
   document.getElementById("setCtx").textContent = "±" + settings.ctxLines + " lines";
   document.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("on", b.dataset.mode === settings.mode));
   document.getElementById("ctxRow").classList.toggle("hidden", settings.mode === "word");
+  document.getElementById("narrOn").classList.toggle("on", settings.narration);
+  document.getElementById("narrOff").classList.toggle("on", !settings.narration);
+  document.getElementById("voiceRow").style.display = settings.narration ? "" : "none";
   document.querySelectorAll(".step-btn").forEach(b => {
     const [min, max] = SET_BOUNDS[b.dataset.set];
     const v = settings[b.dataset.set];
@@ -775,6 +835,7 @@ async function renderLibrary() {
   books.sort((a, b) => b.addedAt - a.addedAt);
   for (const b of books) {
     const prog = await getMeta("progress:" + b.id) || 0;
+    const st = await getMeta("stats:" + b.id) || { wordsRead: 0, msRead: 0 };
     const pct = b.words.length ? (prog / b.words.length * 100) : 0;
     const card = document.createElement("div");
     card.className = "book-card";
@@ -782,7 +843,11 @@ async function renderLibrary() {
       '<div class="bk-title"></div><div class="bk-author"></div>' +
       '<div class="bk-progress-row"><div class="bk-bar"><div style="width:' + pct.toFixed(1) + '%"></div></div>' +
       '<div class="bk-pct">' + pct.toFixed(1) + '%</div></div>' +
+      '<div class="bk-time"></div>' +
       '<button class="bk-delete">Remove from library</button>';
+    card.querySelector(".bk-time").textContent = st.msRead > 20000
+      ? fmtDuration(st.msRead) + " reading · " + fmtCount(st.wordsRead) + " words"
+      : "Not started";
     card.querySelector(".bk-title").textContent = b.title;
     card.querySelector(".bk-author").textContent = b.author || (b.words.length.toLocaleString() + " words");
     card.querySelector(".bk-delete").addEventListener("click", async e => {
@@ -804,8 +869,8 @@ async function openBook(id) {
   if (!book) return;
   idx = Math.min(await getMeta("progress:" + id) || 0, book.words.length - 1);
   searchIdx = null; searchIdxFor = null;
+  await loadStats();
   document.getElementById("rdBook").textContent = book.title;
-  document.getElementById("scrub").max = book.words.length - 1;
   setMeta("lastBook", id);
   showScreen("readerScreen");
   applyMode();
@@ -835,9 +900,7 @@ function renderWord() {
   if (settings.mode === "word") renderRsvpWord(); else renderFlow();
   const ch = currentChapter();
   document.getElementById("rdChapter").textContent = ch ? ch.title : "";
-  const scrub = document.getElementById("scrub");
-  if (document.activeElement !== scrub) scrub.value = idx;
-  document.getElementById("scrubPct").textContent = (idx / (book.words.length - 1) * 100).toFixed(1) + "%";
+  document.getElementById("rdPct").textContent = (idx / (book.words.length - 1) * 100).toFixed(1) + "%";
 }
 function renderRsvpWord() {
   const w = book.words[idx] || "";
@@ -1083,11 +1146,16 @@ function play() {
   playing = true;
   document.getElementById("playBtn").textContent = "❚❚";
   document.getElementById("tapHint").style.opacity = "0";
-  tick();
+  clockStart();
+  // narration becomes the clock: the highlight follows the voice, not a timer
+  if (settings.narration && speechAvailable()) ttsStart();
+  else tick();
 }
 function pause() {
   playing = false;
   clearTimeout(timer);
+  ttsStop();
+  clockStop();
   document.getElementById("playBtn").textContent = "▶";
   document.getElementById("tapHint").style.opacity = "0.8";
   saveProgress(true);
@@ -1104,6 +1172,7 @@ function tick() {
   timer = setTimeout(() => {
     if (idx >= book.words.length - 1) { pause(); toast("End of book"); return; }
     idx++;
+    countWord(1);
     if (nextIsChapter) flashChapter();
     tick();
   }, d);
@@ -1208,9 +1277,6 @@ document.getElementById("playBtn").addEventListener("click", () => playing ? pau
 document.getElementById("back15").addEventListener("click", () => {
   idx = Math.max(0, idx - 15); renderWord(); saveProgress(true);
 });
-document.getElementById("scrub").addEventListener("input", e => {
-  pause(); idx = +e.target.value; renderWord(); saveProgress(true);
-});
 document.querySelectorAll(".step-btn").forEach(b => {
   b.addEventListener("click", () => {
     const key = b.dataset.set;
@@ -1241,12 +1307,14 @@ document.querySelectorAll(".mode-btn").forEach(b => {
     if (book) renderWord();
   });
 });
-document.getElementById("settingsOpen").addEventListener("click", () => {
+document.getElementById("settingsOpen").addEventListener("click", openSettings);
+document.getElementById("settingsOpenLib").addEventListener("click", openSettings);
+function openSettings() {
   pause();
   syncSettingUI();
   updateAccountUI();
   document.getElementById("settingsModal").classList.add("show");
-});
+}
 document.getElementById("settingsClose").addEventListener("click", () => document.getElementById("settingsModal").classList.remove("show"));
 let resizeT;
 window.addEventListener("resize", () => {
@@ -1461,6 +1529,55 @@ document.getElementById("bwConfirm").addEventListener("click", () => {
   closeBookView();
 });
 
+/* stats modal */
+document.getElementById("statsBtn").addEventListener("click", openStatsModal);
+document.getElementById("statsClose").addEventListener("click", () => document.getElementById("statsModal").classList.remove("show"));
+document.getElementById("statsReset").addEventListener("click", async () => {
+  if (!book || !confirm("Reset reading stats for this book on this device?")) return;
+  stats = { wordsRead: 0, msRead: 0 };
+  playStart = playing ? Date.now() : 0;
+  await setMeta("stats:" + book.id, stats);
+  cloudPush(true);
+  document.getElementById("statsModal").classList.remove("show");
+  toast("Stats reset");
+});
+
+/* skip to percentage */
+function gotoPercent() {
+  const el = document.getElementById("pctInput");
+  const v = parseFloat(el.value);
+  if (!book || isNaN(v)) { toast("Enter a number from 0 to 100"); return; }
+  pause();
+  idx = Math.min(Math.max(Math.round(v / 100 * (book.words.length - 1)), 0), book.words.length - 1);
+  renderWord(); saveProgress(true); cloudPush(true);
+  document.getElementById("searchModal").classList.remove("show");
+  toast("Jumped to " + Math.min(Math.max(v, 0), 100) + "%");
+}
+document.getElementById("pctGo").addEventListener("click", gotoPercent);
+document.getElementById("pctInput").addEventListener("keydown", e => { if (e.key === "Enter") gotoPercent(); });
+
+/* narration */
+document.querySelectorAll(".narr-btn").forEach(b => {
+  b.addEventListener("click", () => {
+    const on = b.dataset.narr === "1";
+    if (on && !speechAvailable()) { toast("Narration not supported in this browser"); return; }
+    if (settings.narration === on) return;
+    settings.narration = on;
+    if (playing) pause();
+    saveSettings(); syncSettingUI();
+    if (on) loadVoices();
+  });
+});
+document.getElementById("voiceSelect").addEventListener("change", e => {
+  settings.voiceURI = e.target.value;
+  saveSettings();
+  if (playing && settings.narration) { pause(); play(); }
+});
+if (speechAvailable()) {
+  loadVoices();
+  speechSynthesis.addEventListener("voiceschanged", loadVoices);
+}
+
 /* export modal */
 document.getElementById("exportBtn").addEventListener("click", () => {
   document.getElementById("exportText").value = makeConfig();
@@ -1492,12 +1609,236 @@ document.getElementById("importApply").addEventListener("click", async () => {
   if (ok) document.getElementById("importModal").classList.remove("show");
 });
 
-window.addEventListener("beforeunload", () => saveProgress(true));
+window.addEventListener("beforeunload", () => { saveProgress(true); clockStop(); });
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) { pause(); cloudPush(true); }
 });
 
-/* ============ Cloud sync (Firebase, loaded on demand) ============ */
+/* ============ Reading stats ============ */
+let stats = { wordsRead: 0, msRead: 0 };
+let playStart = 0, statsDirty = false;
+
+async function loadStats() {
+  stats = await getMeta("stats:" + book.id) || { wordsRead: 0, msRead: 0 };
+}
+function saveStats(force) {
+  if (!book || (!statsDirty && !force)) return;
+  statsDirty = false;
+  setMeta("stats:" + book.id, stats);
+}
+function countWord(n) {
+  if (n > 0 && n < 20) { stats.wordsRead += n; statsDirty = true; }
+}
+function clockStart() { playStart = Date.now(); }
+function clockStop() {
+  if (!playStart) return;
+  stats.msRead += Date.now() - playStart;
+  playStart = 0; statsDirty = true;
+  saveStats(true);
+}
+function liveMs() { return stats.msRead + (playStart ? Date.now() - playStart : 0); }
+function fmtDuration(ms) {
+  const s = Math.round(ms / 1000);
+  if (s < 60) return s + "s";
+  const m = Math.floor(s / 60);
+  if (m < 60) return m + "m";
+  const h = Math.floor(m / 60);
+  return h + "h " + (m % 60) + "m";
+}
+function fmtCount(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
+  if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "k";
+  return String(n);
+}
+
+async function openStatsModal() {
+  pause();
+  const grid = document.getElementById("statGrid");
+  const note = document.getElementById("statNote");
+  document.getElementById("statHead").textContent = book.title;
+  let words = stats.wordsRead, ms = liveMs(), pooled = false;
+
+  // if signed in, pool this book's totals across every device
+  if (fbUser && fb) {
+    try {
+      const snap = await fb.F.getDoc(fb.F.doc(fb.db, "users", fbUser.uid, "books", book.id));
+      if (snap.exists()) {
+        const devs = snap.data().devices || {};
+        let w = 0, m = 0;
+        for (const [id, d] of Object.entries(devs)) {
+          if (id === deviceId) continue;
+          w += d.wordsRead || 0; m += d.msRead || 0;
+        }
+        if (w || m) { words += w; ms += m; pooled = true; }
+      }
+    } catch (e) { console.warn(e); }
+  }
+
+  const avg = ms > 5000 ? Math.round(words / (ms / 60000)) : 0;
+  const left = book.words.length - 1 - idx;
+  const etaMin = avg > 0 ? left / avg : 0;
+  const pct = (idx / (book.words.length - 1) * 100).toFixed(1);
+
+  const cells = [
+    [fmtCount(words), "words read"],
+    [fmtDuration(ms), "time reading"],
+    [avg ? avg + " wpm" : "—", "average pace"],
+    [avg ? fmtDuration(etaMin * 60000) : "—", "left at that pace"],
+    [pct + "%", "through the book"],
+    [fmtCount(left), "words remaining"]
+  ];
+  grid.innerHTML = cells.map(c =>
+    '<div class="stat-cell"><div class="sv">' + esc(c[0]) + '</div><div class="sl">' + esc(c[1]) + "</div></div>"
+  ).join("");
+  note.textContent = pooled
+    ? "Totals include reading done on your other signed-in devices."
+    : "Counted only while the reader is playing.";
+  document.getElementById("statsModal").classList.add("show");
+}
+
+/* ============ Narration ============ */
+let voices = [], ttsChunk = null, ttsOn = false;
+let interpTimer = null, boundaryMode = false, boundaryWatch = null;
+let charsPerSec = 0;   // learned from completed chunks
+
+function speechAvailable() { return typeof speechSynthesis !== "undefined"; }
+function loadVoices() {
+  if (!speechAvailable()) return;
+  voices = speechSynthesis.getVoices() || [];
+  const sel = document.getElementById("voiceSelect");
+  if (!sel) return;
+  const lang = (navigator.language || "en").slice(0, 2).toLowerCase();
+  const ranked = voices.slice().sort((a, b) => {
+    const s = v => (v.localService ? 2 : 0) + (v.lang.toLowerCase().startsWith(lang) ? 1 : 0);
+    return s(b) - s(a);
+  });
+  sel.innerHTML = ranked.map(v =>
+    '<option value="' + esc(v.voiceURI) + '">' + esc(v.name) + " · " + esc(v.lang) +
+    (v.localService ? "" : " (network)") + "</option>"
+  ).join("");
+  if (!settings.voiceURI && ranked.length) { settings.voiceURI = ranked[0].voiceURI; saveSettings(); }
+  if (settings.voiceURI) sel.value = settings.voiceURI;
+}
+function currentVoice() {
+  return voices.find(v => v.voiceURI === settings.voiceURI) || voices[0] || null;
+}
+function speechRate() {
+  // rate 1.0 is roughly 180 wpm on most engines
+  return Math.min(Math.max(settings.wpm / 180, 0.5), 3);
+}
+
+/* build one utterance's worth of text: a sentence, capped so Chrome doesn't truncate */
+function buildChunk(start) {
+  const words = book.words, len = words.length;
+  const MAXC = 200;
+  const out = [], offsets = [];
+  let chars = 0, i = start;
+  while (i < len) {
+    const w = words[i];
+    if (out.length && chars + 1 + w.length > MAXC) break;
+    offsets.push(chars + (out.length ? 1 : 0));
+    chars += (out.length ? 1 : 0) + w.length;
+    out.push(w);
+    i++;
+    if (/[.?!…]["'”’)]*$/.test(w)) break;                 // sentence end
+    if (chars > MAXC * 0.6 && /[,;:]["'”’)]*$/.test(w)) break;  // long sentence, break at a comma
+    if (book.chapters.some(c => c.start === i)) break;     // never cross a chapter
+  }
+  if (!out.length) return null;
+  return { start, count: out.length, text: out.join(" "), offsets };
+}
+function chunkWordAt(charIndex) {
+  const o = ttsChunk.offsets;
+  let lo = 0, hi = o.length - 1, ans = 0;
+  while (lo <= hi) { const mid = (lo + hi) >> 1; if (o[mid] <= charIndex) { ans = mid; lo = mid + 1; } else hi = mid - 1; }
+  return ans;
+}
+function ttsAdvanceTo(wordInChunk) {
+  const target = Math.min(ttsChunk.start + wordInChunk, book.words.length - 1);
+  if (target === idx) return;
+  countWord(target - idx);
+  idx = target;
+  renderWord();
+  saveProgress(false);
+  cloudPush(false);
+}
+function clearInterp() { clearTimeout(interpTimer); interpTimer = null; }
+
+/* interpolation: drives the highlight when the engine gives no word boundaries,
+   and is corrected at every chunk end so error never accumulates */
+function startInterp() {
+  clearInterp();
+  const cps = charsPerSec || (15 * speechRate());
+  const total = (ttsChunk.text.length / cps) * 1000;
+  let w = 0;
+  const step = () => {
+    if (!ttsOn || boundaryMode) return;
+    w++;
+    if (w >= ttsChunk.count) return;
+    ttsAdvanceTo(w);
+    const share = ((ttsChunk.offsets[w + 1] || ttsChunk.text.length) - ttsChunk.offsets[w]) / ttsChunk.text.length;
+    interpTimer = setTimeout(step, Math.max(40, total * share));
+  };
+  const first = (ttsChunk.offsets[1] || ttsChunk.text.length) / ttsChunk.text.length;
+  interpTimer = setTimeout(step, Math.max(40, total * first));
+}
+function ttsSpeakFrom(start) {
+  if (!ttsOn) return;
+  ttsChunk = buildChunk(start);
+  if (!ttsChunk) { pause(); toast("End of book"); return; }
+  boundaryMode = false;
+  const u = new SpeechSynthesisUtterance(ttsChunk.text);
+  const v = currentVoice();
+  if (v) { u.voice = v; u.lang = v.lang; }
+  u.rate = speechRate();
+  const began = Date.now();
+
+  u.onboundary = e => {
+    if (!ttsOn || e.name === "sentence") return;
+    boundaryMode = true;
+    clearInterp();
+    clearTimeout(boundaryWatch);
+    ttsAdvanceTo(chunkWordAt(e.charIndex || 0));
+    // if word events stop arriving, fall back to interpolation
+    boundaryWatch = setTimeout(() => { boundaryMode = false; startInterp(); }, 1400);
+  };
+  u.onend = () => {
+    clearTimeout(boundaryWatch);
+    clearInterp();
+    if (!ttsOn) return;
+    const secs = (Date.now() - began) / 1000;
+    if (secs > 0.4) {
+      const measured = ttsChunk.text.length / secs;
+      charsPerSec = charsPerSec ? charsPerSec * 0.7 + measured * 0.3 : measured;
+    }
+    const next = ttsChunk.start + ttsChunk.count;
+    ttsAdvanceTo(ttsChunk.count - 1);
+    if (next >= book.words.length) { pause(); toast("End of book"); return; }
+    ttsSpeakFrom(next);
+  };
+  u.onerror = () => { if (ttsOn) { clearInterp(); pause(); toast("Narration stopped"); } };
+
+  speechSynthesis.speak(u);
+  startInterp();
+}
+function ttsStart() {
+  if (!speechAvailable()) { toast("Narration not supported here"); return false; }
+  if (!voices.length) loadVoices();
+  ttsOn = true;
+  speechSynthesis.cancel();
+  ttsSpeakFrom(idx);
+  return true;
+}
+function ttsStop() {
+  ttsOn = false;
+  clearInterp();
+  clearTimeout(boundaryWatch);
+  boundaryMode = false;
+  ttsChunk = null;
+  if (speechAvailable()) speechSynthesis.cancel();
+}
+
+
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyCGb_nbEwAa66Tf7CYCPMdg3_HiQC5cDsI",
   authDomain: "focused-reader.firebaseapp.com",
@@ -1581,7 +1922,9 @@ async function cloudPush(force) {
     index: idx,
     pct: +(idx / (book.words.length - 1) * 100).toFixed(2),
     updatedAt: Date.now(),
-    name: deviceName
+    name: deviceName,
+    wordsRead: stats.wordsRead,
+    msRead: liveMs()
   };
   try {
     await setDoc(doc(fb.db, "users", fbUser.uid, "books", book.id), {
