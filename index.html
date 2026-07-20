@@ -34,6 +34,10 @@
   }
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
+  /* kills the double-tap-to-zoom gesture, so fast repeat taps on a button
+     register as taps instead of a zoom */
+  html, body, button { touch-action: manipulation; }
+  button { -webkit-user-select: none; user-select: none; }
   body {
     background: var(--bg);
     color: var(--ink);
@@ -51,6 +55,8 @@
   }
   .lib-header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
   .lib-header .sub { font-size: 12px; color: var(--muted); }
+  .lib-head-right { display: flex; align-items: center; gap: 4px; }
+  .lib-head-right .sub { max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lib-body { flex: 1; overflow-y: auto; padding: 4px 20px 20px; }
   .book-card {
     background: var(--surface);
@@ -65,12 +71,44 @@
   .book-card .bk-author { font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
   .bk-progress-row { display: flex; align-items: center; gap: 10px; }
   .bk-bar { flex: 1; height: 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden; }
-  .bk-bar > div { height: 100%; background: var(--orp); border-radius: 2px; }
+  .bk-bar > div { height: 100%; background: var(--flow-active); border-radius: 2px; }
   .bk-pct { font-size: 11px; color: var(--muted); min-width: 32px; text-align: right; font-variant-numeric: tabular-nums; }
   .bk-delete {
     margin-top: 8px; font-size: 11.5px; color: var(--muted);
     background: none; border: none; cursor: pointer; padding: 4px 0;
   }
+  .bk-time { margin-top: 6px; font-size: 11px; color: var(--muted); }
+
+  .pct-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .pct-row label { font-size: 12.5px; color: var(--muted); flex: 0 0 auto; }
+  .pct-row input {
+    flex: 1; min-width: 0; background: var(--bg); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 9px; padding: 9px 10px;
+    font-family: inherit; font-size: 13.5px;
+  }
+  .pct-row input:focus { outline: none; border-color: var(--muted); }
+  .pct-sign { font-size: 13px; color: var(--muted); }
+  .pct-row .btn { flex: 0 0 auto; padding: 9px 14px; font-size: 13px; }
+
+  .narr-readout {
+    font-size: 11px; color: var(--muted); text-align: center;
+    font-variant-numeric: tabular-nums; min-height: 13px;
+  }
+  .narr-btn {
+    flex: 1; padding: 9px; border-radius: 9px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--muted); font-size: 12.5px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  .narr-btn.on { color: var(--ink); border-color: var(--muted); background: var(--surface-2); }
+
+  .stat-head { font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .stat-cell {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px;
+  }
+  .stat-cell .sv { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat-cell .sl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .stat-note { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-bottom: 12px; }
   .empty-lib { text-align: center; color: var(--muted); padding: 48px 24px; font-size: 14px; line-height: 1.6; }
   .lib-actions { padding: 12px 20px calc(max(env(safe-area-inset-bottom), 12px) + 8px); display: flex; gap: 10px; border-top: 1px solid var(--line); }
   .btn {
@@ -88,6 +126,7 @@
     padding: max(env(safe-area-inset-top), 14px) 16px 10px;
     display: flex; align-items: center; gap: 12px;
   }
+  .icon-btn.on { color: var(--ink); }
   .icon-btn {
     background: none; border: none; color: var(--muted); cursor: pointer;
     font-size: 15px; padding: 6px 8px; font-family: inherit;
@@ -141,8 +180,6 @@
     text-align: left;
     will-change: transform;
   }
-  .flow-word { color: var(--flow-dim); }
-  .flow-cur { color: var(--flow-active); }
   .flow-orp { color: var(--orp); flex: 0 0 auto; }
 
   .flow-lines {
@@ -151,6 +188,7 @@
     font-size: var(--flow-fs, 19px);
     color: var(--flow-dim);
   }
+  .flow-stage.active .flow-lines { display: block; }
   .fl-line {
     height: var(--flow-lh-px, 35px); line-height: var(--flow-lh-px, 35px);
     white-space: pre; overflow: hidden;
@@ -174,8 +212,6 @@
   .flow-fade { position: absolute; pointer-events: none; }
   .flow-fade.top    { top: 0; left: 0; right: 0; height: 26%; background: linear-gradient(var(--bg), transparent); }
   .flow-fade.bottom { bottom: 0; left: 0; right: 0; height: 26%; background: linear-gradient(transparent, var(--bg)); }
-  .flow-stage.line-mode .flow-fade.top    { height: 42%; background: linear-gradient(var(--bg) 42%, transparent); }
-  .flow-stage.line-mode .flow-fade.bottom { height: 42%; background: linear-gradient(transparent, var(--bg) 58%); }
   .flow-anchor { position: absolute; top: 0; left: 0; width: 0; height: 0; pointer-events: none; }
   .fa-bar {
     position: absolute; left: 0; width: 2px; height: 9px;
@@ -253,9 +289,6 @@
     display: flex; flex-direction: column; gap: 12px;
     background: var(--bg);
   }
-  .scrub-row { display: flex; align-items: center; gap: 10px; }
-  .scrub-row input[type=range] { flex: 1; }
-  .scrub-pct { font-size: 11px; color: var(--muted); min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
   .ctl-main { display: flex; align-items: center; justify-content: center; gap: 22px; }
   .play-btn {
     width: 60px; height: 60px; border-radius: 50%;
@@ -312,28 +345,30 @@
   .search-item .si-pct { display: block; font-size: 10.5px; color: var(--muted); margin-bottom: 3px; font-variant-numeric: tabular-nums; }
   .search-item mark { background: transparent; color: var(--orp); font-weight: 700; }
 
-  /* ---------- Book view ---------- */
-  .bw-header { padding: max(env(safe-area-inset-top), 14px) 12px 10px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
-  .bw-title { flex: 1; font-size: 13px; font-weight: 600; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .bw-header .icon-btn { font-size: 13px; font-weight: 600; white-space: nowrap; }
-  .bw-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overflow-anchor: none; }
-  .bw-content {
-    max-width: 680px; margin: 0 auto; padding: 26px 22px 48px;
-    font-family: Charter, Georgia, Cambria, serif;
-    font-size: 19px; line-height: 1.85; color: var(--ink);
-    text-align: justify; hyphens: auto;
+  /* ---------- Follow: a scrolling page that reads itself ---------- */
+  .follow-stage { flex: 1; display: none; position: relative; min-height: 0; }
+  .follow-stage.active { display: block; }
+  .follow-scroll { position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overflow-anchor: none; }
+  .follow-content {
+    max-width: 680px; margin: 0 auto;
+    padding: 18px 22px 60vh;
+    font-family: Charter, Georgia, Cambria, "Times New Roman", serif;
+    font-size: var(--flow-fs, 19px);
+    line-height: 1.75;
+    color: var(--flow-dim);
+    text-align: left;
   }
-  .bw-word { cursor: pointer; border-radius: 3px; padding: 0 1px; transition: background 0.1s; }
-  .bw-word:active { background: var(--surface-2); }
-  .bw-current { box-shadow: inset 0 -2px 0 var(--muted); }
-  .bw-sel { background: var(--orp); color: #fff; box-shadow: none; }
-  .bw-footer {
-    border-top: 1px solid var(--line); background: var(--bg);
-    padding: 12px 18px calc(max(env(safe-area-inset-bottom), 12px) + 6px);
-    display: flex; align-items: center; gap: 12px;
+  .fw-p { margin: 0 0 0.9em; }
+  .fw-word { cursor: pointer; border-radius: 3px; }
+  .fw-read { color: var(--flow-active); }
+  .fw-cur { color: var(--flow-active); background: var(--surface-2); }
+  .follow-back {
+    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+    background: var(--ink); color: var(--bg); border: none; border-radius: 20px;
+    padding: 8px 15px; font-size: 12.5px; font-weight: 600; font-family: inherit;
+    cursor: pointer; display: none; z-index: 5; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
   }
-  .bw-selinfo { flex: 1; min-width: 0; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .bw-selinfo b { color: var(--ink); font-weight: 600; }
+  .follow-back.show { display: block; }
 
   /* ---------- Modal ---------- */
   .modal-wrap {
@@ -353,6 +388,20 @@
     font-family: ui-monospace, monospace; font-size: 12px; margin-bottom: 12px; resize: vertical;
   }
   .modal .btn-row { display: flex; gap: 10px; }
+  /* ---------- Fullscreen mode ---------- */
+  .fs-exit {
+    position: absolute; right: 16px;
+    bottom: calc(max(env(safe-area-inset-bottom), 16px) + 6px);
+    width: 42px; height: 42px; border-radius: 50%;
+    border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+    font-size: 15px; cursor: pointer; font-family: inherit;
+    display: none; align-items: center; justify-content: center;
+    z-index: 40; opacity: 0.6; transition: opacity 0.2s;
+  }
+  .fs-exit:active { opacity: 1; }
+  body.fs .fs-exit { display: flex; }
+  body.fs .controls { display: none; }
+
   .toast {
     position: absolute; top: calc(max(env(safe-area-inset-top), 14px) + 50px); left: 50%; transform: translateX(-50%);
     background: var(--ink); color: var(--bg); font-size: 13px; font-weight: 600;
@@ -368,7 +417,10 @@
 <div class="screen active" id="libraryScreen">
   <div class="lib-header">
     <h1>Focused Reader</h1>
-    <span class="sub">RSVP · EPUB</span>
+    <div class="lib-head-right">
+      <span class="sub" id="libAcct"></span>
+      <button class="icon-btn" id="settingsOpenLib" aria-label="Settings">⚙</button>
+    </div>
   </div>
   <div class="lib-body" id="libBody"></div>
   <div class="parsing-note" id="parsingNote" style="display:none">Parsing epub…</div>
@@ -385,9 +437,9 @@
     <button class="icon-btn" id="backBtn">‹ Library</button>
     <button class="rd-titles" id="chapterOpen">
       <div class="rd-book" id="rdBook"></div>
-      <div class="rd-chapter" id="rdChapter"></div>
+      <div class="rd-chapter"><span id="rdChapter"></span> · <span id="rdPct">0.0%</span></div>
     </button>
-    <button class="icon-btn" id="bookViewOpen" aria-label="Full book view">▤</button>
+    <button class="icon-btn" id="fsOpen" aria-label="Fullscreen">⛶</button>
     <button class="icon-btn" id="searchOpen" aria-label="Search book">⌕</button>
     <button class="icon-btn" id="settingsOpen" aria-label="Settings">⚙</button>
     <button class="icon-btn" id="themeBtn">◐</button>
@@ -415,7 +467,6 @@
 
   <div class="flow-stage" id="flowStage">
     <div class="flow-viewport" id="flowViewport">
-      <div class="flow-content" id="flowContent"></div>
       <div class="flow-lines" id="flowLines"></div>
       <span class="fl-measure" id="flowMeasure" aria-hidden="true"></span>
       <div class="flow-fade top"></div>
@@ -427,33 +478,23 @@
     </div>
   </div>
 
-  <div class="controls">
-    <div class="scrub-row">
-      <input type="range" id="scrub" min="0" max="100" value="0">
-      <span class="scrub-pct" id="scrubPct">0.0%</span>
+  <div class="follow-stage" id="followStage">
+    <div class="follow-scroll" id="followScroll">
+      <div class="follow-content" id="followContent"></div>
     </div>
+    <button class="follow-back" id="followBack">↑ back to current word</button>
+  </div>
+
+  <div class="controls">
+    <div class="narr-readout" id="narrReadout"></div>
     <div class="ctl-main">
       <button class="jump-btn" id="back15">‹ 15 words</button>
       <button class="play-btn" id="playBtn">▶</button>
-      <button class="jump-btn" id="exportBtn">Export</button>
+      <button class="jump-btn" id="statsBtn">Stats</button>
     </div>
   </div>
-</div>
 
-<!-- ================= BOOK VIEW ================= -->
-<div class="screen" id="bookViewScreen">
-  <div class="bw-header">
-    <button class="icon-btn" id="bwClose">‹ Back</button>
-    <div class="bw-title" id="bwTitle"></div>
-    <button class="icon-btn" id="bwRecenter">My spot</button>
-  </div>
-  <div class="bw-scroll" id="bwScroll">
-    <div class="bw-content" id="bwContent"></div>
-  </div>
-  <div class="bw-footer">
-    <div class="bw-selinfo" id="bwSelInfo"></div>
-    <button class="btn primary" id="bwConfirm" style="flex:0 0 auto;">Set position here</button>
-  </div>
+  <button class="fs-exit" id="fsExit" aria-label="Exit fullscreen">✕</button>
 </div>
 
 <!-- ================= MODALS ================= -->
@@ -494,6 +535,12 @@
 <div class="modal-wrap" id="searchModal">
   <div class="modal">
     <h2>Search book</h2>
+    <div class="pct-row">
+      <label for="pctInput">Skip to</label>
+      <input type="number" id="pctInput" min="0" max="100" step="0.1" inputmode="decimal" placeholder="0–100">
+      <span class="pct-sign">%</span>
+      <button class="btn" id="pctGo">Go</button>
+    </div>
     <input type="text" id="searchInput" class="search-input" placeholder="Type a word or phrase…" autocomplete="off" autocapitalize="none" spellcheck="false">
     <div class="search-results" id="searchResults"><div class="search-hint">Type at least 2 characters.</div></div>
     <div class="btn-row">
@@ -509,8 +556,8 @@
       <div class="set-label">Display</div>
       <div class="mode-row">
         <button class="mode-btn on" data-mode="word">Word</button>
-        <button class="mode-btn" data-mode="page">Page</button>
-        <button class="mode-btn" data-mode="line">Line</button>
+        <button class="mode-btn" data-mode="page">Stream</button>
+        <button class="mode-btn" data-mode="line">Follow</button>
       </div>
     </div>
     <div class="set-row">
@@ -546,6 +593,17 @@
       </div>
     </div>
     <div class="set-row">
+      <div class="set-label">Narration</div>
+      <div class="mode-row">
+        <button class="narr-btn" id="narrOff" data-narr="0">Off</button>
+        <button class="narr-btn on" id="narrOn" data-narr="1">On</button>
+      </div>
+    </div>
+    <div class="set-row" id="voiceRow" style="display:none">
+      <div class="set-label">Voice</div>
+      <select id="voiceSelect" class="dev-input"></select>
+    </div>
+    <div class="set-row">
       <div class="set-label">Account</div>
       <div class="acct-box">
         <div class="acct-status" id="acctStatus">Not signed in</div>
@@ -560,7 +618,21 @@
       <input type="text" id="deviceNameInput" class="dev-input" placeholder="This device" maxlength="40">
     </div>
     <div class="btn-row">
+      <button class="btn" id="exportBtn">Export config</button>
       <button class="btn primary" id="settingsClose">Done</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="statsModal">
+  <div class="modal">
+    <h2>Reading stats</h2>
+    <div class="stat-head" id="statHead"></div>
+    <div class="stat-grid" id="statGrid"></div>
+    <p class="stat-note" id="statNote"></p>
+    <div class="btn-row">
+      <button class="btn" id="statsReset">Reset</button>
+      <button class="btn primary" id="statsClose">Close</button>
     </div>
   </div>
 </div>
@@ -614,7 +686,7 @@ const setMeta = (k, v) => idb("meta", "readwrite", s => s.put(v, k));
 const getMeta = k => idb("meta", "readonly", s => s.get(k));
 
 /* ============ State ============ */
-let settings = { wpm: 300, pauseIntensity: 1.0, theme: "dark", mode: "word", fontSize: 19, ctxLines: 2 };
+let settings = { wpm: 300, pauseIntensity: 1.0, theme: "dark", mode: "word", fontSize: 19, ctxLines: 2, narration: false, voiceURI: "" };
 let book = null;          // {id,title,author,words,chapters}
 let idx = 0;
 let playing = false;
@@ -646,6 +718,9 @@ function syncSettingUI() {
   document.getElementById("setCtx").textContent = "±" + settings.ctxLines + " lines";
   document.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("on", b.dataset.mode === settings.mode));
   document.getElementById("ctxRow").classList.toggle("hidden", settings.mode === "word");
+  document.getElementById("narrOn").classList.toggle("on", settings.narration);
+  document.getElementById("narrOff").classList.toggle("on", !settings.narration);
+  document.getElementById("voiceRow").style.display = settings.narration ? "" : "none";
   document.querySelectorAll(".step-btn").forEach(b => {
     const [min, max] = SET_BOUNDS[b.dataset.set];
     const v = settings[b.dataset.set];
@@ -679,6 +754,7 @@ async function parseEpub(file) {
   const spineIds = [...opf.querySelectorAll("spine > itemref")].map(ir => ir.getAttribute("idref"));
 
   const words = [];
+  const paras = [];            // word indices where a paragraph begins
   const fileStart = {};        // normalized path -> first word index
   const fileHeadings = [];     // {start, heading} for fallback
   for (const sid of spineIds) {
@@ -691,12 +767,14 @@ async function parseEpub(file) {
     const html = await f.async("string");
     const doc = new DOMParser().parseFromString(html, "text/html");
     doc.querySelectorAll("script,style,nav").forEach(n => n.remove());
-    const text = (doc.body ? doc.body.textContent : "").replace(/\s+/g, " ").trim();
-    if (!text) continue;
+    const extracted = extractWithParagraphs(doc.body);
+    if (!extracted.words.length) continue;
     if (fileStart[path] === undefined) fileStart[path] = words.length;
     const h = doc.querySelector("h1,h2,h3,h4");
     fileHeadings.push({ start: words.length, heading: h ? cleanLabel(h.textContent) : "" });
-    for (const w of text.split(" ")) if (w) words.push(w);
+    // paragraph starts, derived from the same raw text so word indices are untouched
+    for (const p of extracted.paraAt) paras.push(words.length + p);
+    for (const w of extracted.words) words.push(w);
   }
   if (!words.length) throw new Error("No readable text found in this epub.");
 
@@ -705,7 +783,7 @@ async function parseEpub(file) {
   if (!chapters.length || chapters[0].start !== 0) chapters.unshift({ title: chapters.length ? "Beginning" : "Start", start: 0 });
   chapters = dedupeChapters(chapters);
 
-  return { id: (title + "|" + author).toLowerCase(), title, author, words, chapters, addedAt: Date.now() };
+  return { id: (title + "|" + author).toLowerCase(), title, author, words, chapters, paras, addedAt: Date.now() };
 }
 
 function cleanLabel(s) {
@@ -754,6 +832,36 @@ async function buildChaptersFromNcx(zip, opf, opfDir, manifest, fileStart) {
   }
   return dedupeChapters(raw);
 }
+/* Walks the document collecting raw text exactly as textContent would, while noting
+   where each block element starts. Tokenising the same raw string means the word
+   sequence is byte-identical to the old parser, so saved positions stay valid. */
+const BLOCK_TAGS = /^(P|DIV|H1|H2|H3|H4|H5|H6|BLOCKQUOTE|LI|SECTION|ARTICLE|TD|TR|PRE|FIGCAPTION|HR)$/;
+function extractWithParagraphs(body) {
+  if (!body) return { words: [], paraAt: [] };
+  let raw = "";
+  const marks = [];
+  (function walk(node) {
+    for (const n of node.childNodes) {
+      if (n.nodeType === 3) raw += n.nodeValue;
+      else if (n.nodeType === 1) {
+        if (BLOCK_TAGS.test(n.tagName)) marks.push(raw.length);
+        walk(n);
+      }
+    }
+  })(body);
+  const words = [], starts = [];
+  const re = /\S+/g;
+  let m;
+  while ((m = re.exec(raw)) !== null) { words.push(m[0]); starts.push(m.index); }
+  const paraAt = [];
+  let wi = 0, last = -1;
+  for (const mark of marks) {
+    while (wi < starts.length && starts[wi] < mark) wi++;
+    if (wi < starts.length && wi !== last && wi > 0) { paraAt.push(wi); last = wi; }
+  }
+  return { words, paraAt };
+}
+
 function normalizePath(p) {
   const parts = [];
   for (const seg of p.split("/")) {
@@ -775,6 +883,7 @@ async function renderLibrary() {
   books.sort((a, b) => b.addedAt - a.addedAt);
   for (const b of books) {
     const prog = await getMeta("progress:" + b.id) || 0;
+    const st = await getMeta("stats:" + b.id) || { wordsRead: 0, msRead: 0 };
     const pct = b.words.length ? (prog / b.words.length * 100) : 0;
     const card = document.createElement("div");
     card.className = "book-card";
@@ -782,7 +891,11 @@ async function renderLibrary() {
       '<div class="bk-title"></div><div class="bk-author"></div>' +
       '<div class="bk-progress-row"><div class="bk-bar"><div style="width:' + pct.toFixed(1) + '%"></div></div>' +
       '<div class="bk-pct">' + pct.toFixed(1) + '%</div></div>' +
+      '<div class="bk-time"></div>' +
       '<button class="bk-delete">Remove from library</button>';
+    card.querySelector(".bk-time").textContent = st.msRead > 20000
+      ? fmtDuration(st.msRead) + " reading · " + fmtCount(st.wordsRead) + " words"
+      : "Not started";
     card.querySelector(".bk-title").textContent = b.title;
     card.querySelector(".bk-author").textContent = b.author || (b.words.length.toLocaleString() + " words");
     card.querySelector(".bk-delete").addEventListener("click", async e => {
@@ -804,8 +917,9 @@ async function openBook(id) {
   if (!book) return;
   idx = Math.min(await getMeta("progress:" + id) || 0, book.words.length - 1);
   searchIdx = null; searchIdxFor = null;
+  book.paraSet = book.paras && book.paras.length ? new Set(book.paras) : null;
+  await loadStats();
   document.getElementById("rdBook").textContent = book.title;
-  document.getElementById("scrub").max = book.words.length - 1;
   setMeta("lastBook", id);
   showScreen("readerScreen");
   applyMode();
@@ -832,12 +946,12 @@ function orpIndex(len) {
   return 4;
 }
 function renderWord() {
-  if (settings.mode === "word") renderRsvpWord(); else renderFlow();
+  if (settings.mode === "word") renderRsvpWord();
+  else if (settings.mode === "page") renderPage();
+  else renderFollow();
   const ch = currentChapter();
   document.getElementById("rdChapter").textContent = ch ? ch.title : "";
-  const scrub = document.getElementById("scrub");
-  if (document.activeElement !== scrub) scrub.value = idx;
-  document.getElementById("scrubPct").textContent = (idx / (book.words.length - 1) * 100).toFixed(1) + "%";
+  document.getElementById("rdPct").textContent = (idx / (book.words.length - 1) * 100).toFixed(1) + "%";
 }
 function renderRsvpWord() {
   const w = book.words[idx] || "";
@@ -854,8 +968,7 @@ function renderRsvpWord() {
 
 /* ============ Flow modes (page / line) ============ */
 const FLOW_WIN = 500, FLOW_EDGE = 90;
-let flowStart = 0, flowEnd = 0, flowCurEl = null;
-let flowLh = 35, flowEffCtx = 2;
+let flowLh = 35, flowEffCtx = 2, pageRetries = 0;
 
 /* --- text measurement: uses a hidden element with the same font as the rendered
        text, so widths match the browser's own layout exactly --- */
@@ -884,17 +997,18 @@ function orpPos(w) {
   const letters = core.replace(/[^A-Za-z0-9\u00C0-\u024F].*$/, "") || core || w;
   return Math.min(lead + orpIndex(letters.length || w.length), w.length - 1);
 }
-function orpSplitHtml(w) {
-  const o = orpPos(w);
-  return esc(w.slice(0, o)) + '<span class="flow-orp">' + esc(w[o] || "") + "</span>" + esc(w.slice(o + 1));
-}
 
 /* --- PAGE MODE: current word pinned dead center, neighbours filled around it --- */
 function renderPage() {
   ensureMeasure();
   const words = book.words, len = words.length;
   const usable = flowLines.clientWidth;
-  if (!usable) return;
+  // if the container has no layout yet, try again next frame rather than draw nothing
+  if (!usable) {
+    if (pageRetries++ < 10) requestAnimationFrame(() => { if (settings.mode === "page" && book) renderPage(); });
+    return;
+  }
+  pageRetries = 0;
   const spaceW = measure(" ");
   const w = words[idx];
   const o = orpPos(w);
@@ -980,60 +1094,15 @@ function renderPage() {
   flowLines.innerHTML = html;
 }
 
-/* --- LINE MODE: word travels along a fixed line, lines feed upward --- */
-function flowBuildWindow() {
-  const len = book.words.length;
-  flowStart = Math.max(0, idx - Math.floor(FLOW_WIN / 2));
-  flowEnd = Math.min(len, flowStart + FLOW_WIN);
-  if (flowEnd - flowStart < FLOW_WIN) flowStart = Math.max(0, flowEnd - FLOW_WIN);
-  let html = "";
-  for (let i = flowStart; i < flowEnd; i++) {
-    const inner = i === idx ? orpSplitHtml(book.words[i]) : esc(book.words[i]);
-    html += '<span class="flow-word' + (i === idx ? " flow-cur" : "") + '" data-i="' + i + '">' + inner + "</span> ";
-  }
-  flowContent.innerHTML = html;
-  flowCurEl = flowContent.querySelector(".flow-cur");
-}
-function flowPosition() {
-  if (!flowCurEl) return;
-  const vh = flowViewport.clientHeight;
-  const cy = flowCurEl.offsetTop + flowCurEl.offsetHeight / 2;
-  flowContent.style.transform = "translate3d(0," + (vh / 2 - cy).toFixed(2) + "px,0)";
-  const orpEl = flowCurEl.querySelector(".flow-orp");
-  const target = orpEl || flowCurEl;
-  const ax = target.offsetLeft + target.offsetWidth / 2;
-  flowAnchor.style.transform = "translate3d(" + ax.toFixed(2) + "px," + (vh / 2).toFixed(2) + "px,0)";
-}
-function renderLineMode() {
-  const el = flowContent.firstChild
-    ? flowContent.querySelector('.flow-word[data-i="' + idx + '"]')
-    : null;
-  const nearStart = idx < flowStart + FLOW_EDGE && flowStart > 0;
-  const nearEnd = idx >= flowEnd - FLOW_EDGE && flowEnd < book.words.length;
-  if (!el || nearStart || nearEnd) { flowBuildWindow(); flowPosition(); return; }
-  if (flowCurEl && flowCurEl !== el) {
-    flowCurEl.classList.remove("flow-cur");
-    flowCurEl.textContent = book.words[+flowCurEl.dataset.i];
-  }
-  flowCurEl = el;
-  el.classList.add("flow-cur");
-  el.innerHTML = orpSplitHtml(book.words[idx]);
-  flowPosition();
-}
-
-function renderFlow() {
-  if (settings.mode === "page") renderPage(); else renderLineMode();
-}
+function renderFlow() { renderPage(); }
 function flowApplyMetrics() {
   const vpW = flowStage.clientWidth;
   const pad = Math.round(Math.min(28, vpW * 0.06));
   flowLh = Math.round(settings.fontSize * 1.85);
   document.documentElement.style.setProperty("--flow-lh-px", flowLh + "px");
-  for (const el of [flowContent, flowLines]) {
-    el.style.width = vpW + "px";
-    el.style.paddingLeft = pad + "px";
-    el.style.paddingRight = pad + "px";
-  }
+  flowLines.style.width = vpW + "px";
+  flowLines.style.paddingLeft = pad + "px";
+  flowLines.style.paddingRight = pad + "px";
   const avail = flowStage.clientHeight || window.innerHeight * 0.5;
   let fit = Math.floor(avail / flowLh);
   if (fit % 2 === 0) fit -= 1;
@@ -1052,17 +1121,14 @@ function flowApplyMetrics() {
 function applyMode() {
   const isWord = settings.mode === "word";
   const isPage = settings.mode === "page";
+  const isFollow = settings.mode === "line";
   document.getElementById("stage").style.display = isWord ? "flex" : "none";
-  flowStage.classList.toggle("active", !isWord);
-  flowStage.classList.toggle("line-mode", settings.mode === "line");
-  flowContent.style.display = isPage ? "none" : "block";
-  flowLines.style.display = isPage ? "block" : "none";
-  document.getElementById("ctxRow").classList.toggle("hidden", isWord);
-  if (!isWord && book) {
-    flowApplyMetrics();
-    if (isPage) renderPage();
-    else { flowBuildWindow(); requestAnimationFrame(() => flowPosition()); }
-  }
+  flowStage.classList.toggle("active", isPage);
+  followStage.classList.toggle("active", isFollow);
+  // context lines only mean something in Stream; Follow fills the screen
+  document.getElementById("ctxRow").classList.toggle("hidden", !isPage);
+  if (isPage && book) { flowApplyMetrics(); renderPage(); }
+  if (isFollow && book) { fwLastRead = -1; followBuild(); requestAnimationFrame(() => followAutoScroll(true)); }
 }
 
 /* pause multipliers */
@@ -1083,11 +1149,16 @@ function play() {
   playing = true;
   document.getElementById("playBtn").textContent = "❚❚";
   document.getElementById("tapHint").style.opacity = "0";
-  tick();
+  clockStart();
+  // narration becomes the clock: the highlight follows the voice, not a timer
+  if (settings.narration && speechAvailable()) ttsStart();
+  else tick();
 }
 function pause() {
   playing = false;
   clearTimeout(timer);
+  ttsStop();
+  clockStop();
   document.getElementById("playBtn").textContent = "▶";
   document.getElementById("tapHint").style.opacity = "0.8";
   saveProgress(true);
@@ -1104,6 +1175,7 @@ function tick() {
   timer = setTimeout(() => {
     if (idx >= book.words.length - 1) { pause(); toast("End of book"); return; }
     idx++;
+    countWord(1);
     if (nextIsChapter) flashChapter();
     tick();
   }, d);
@@ -1170,8 +1242,8 @@ async function applyConfig(txt) {
 /* ============ Wire-up ============ */
 const flowStage = document.getElementById("flowStage");
 const flowViewport = document.getElementById("flowViewport");
-const flowContent = document.getElementById("flowContent");
 const flowLines = document.getElementById("flowLines");
+const followStage = document.getElementById("followStage");
 const flowMeasure = document.getElementById("flowMeasure");
 const flowAnchor = document.getElementById("flowAnchor");
 const faTop = flowAnchor.querySelector(".fa-bar.top");
@@ -1208,26 +1280,61 @@ document.getElementById("playBtn").addEventListener("click", () => playing ? pau
 document.getElementById("back15").addEventListener("click", () => {
   idx = Math.max(0, idx - 15); renderWord(); saveProgress(true);
 });
-document.getElementById("scrub").addEventListener("input", e => {
-  pause(); idx = +e.target.value; renderWord(); saveProgress(true);
-});
+/* one step of a +/- control. returns false when the value is already pinned
+   at its bound, which lets a held button stop repeating on its own. */
+function applyStep(b) {
+  const key = b.dataset.set;
+  const [min, max, step] = SET_BOUNDS[key];
+  let v = settings[key] + step * (+b.dataset.dir);
+  v = Math.min(Math.max(Math.round(v / step) * step, min), max);
+  if (key === "pauseIntensity") v = +v.toFixed(1);
+  if (v === settings[key]) return false;
+  settings[key] = v;
+  saveSettings();
+  syncSettingUI();
+  if (key === "wpm" || key === "pauseIntensity") queueSettingsPush();
+  if (key === "wpm") { rateBias = 1; measuredWpm = 0; updateReadout(); if (playing && settings.narration) { pause(); play(); } }
+  if (key === "pauseIntensity" && playing && settings.narration) { pause(); play(); }
+  if (settings.mode !== "word" && book && (key === "fontSize" || key === "ctxLines")) {
+    if (settings.mode === "page") { flowApplyMetrics(); renderPage(); }
+    else if (settings.mode === "line") { fwLastRead = -1; followBuild(); followAutoScroll(true); }
+  }
+  return true;
+}
+
+/* hold a stepper to keep incrementing: one step on press, then a steady
+   repeat after a short delay. driven off pointer events so a single code
+   path covers mouse, touch and pen. */
+const HOLD_DELAY = 420, HOLD_INTERVAL = 90;
 document.querySelectorAll(".step-btn").forEach(b => {
-  b.addEventListener("click", () => {
-    const key = b.dataset.set;
-    const [min, max, step] = SET_BOUNDS[key];
-    let v = settings[key] + step * (+b.dataset.dir);
-    v = Math.min(Math.max(Math.round(v / step) * step, min), max);
-    if (key === "pauseIntensity") v = +v.toFixed(1);
-    if (v === settings[key]) return;
-    settings[key] = v;
-    saveSettings();
-    syncSettingUI();
-    if (key === "wpm" || key === "pauseIntensity") queueSettingsPush();
-    if (settings.mode !== "word" && book && (key === "fontSize" || key === "ctxLines")) {
-      flowApplyMetrics();
-      if (settings.mode === "line") flowBuildWindow();
-      renderFlow();
-    }
+  let delayTimer = null, repeatTimer = null;
+
+  function stopHold() {
+    clearTimeout(delayTimer); clearInterval(repeatTimer);
+    delayTimer = repeatTimer = null;
+  }
+
+  b.addEventListener("pointerdown", e => {
+    if (e.button > 0) return;          // ignore right / middle click
+    e.preventDefault();                // no focus ring, no synthetic click, no zoom
+    if (b.disabled) return;
+    try { b.setPointerCapture(e.pointerId); } catch {}
+    applyStep(b);
+    delayTimer = setTimeout(() => {
+      repeatTimer = setInterval(() => {
+        if (!applyStep(b)) stopHold();  // hit the min or max, nothing left to do
+      }, HOLD_INTERVAL);
+    }, HOLD_DELAY);
+  });
+
+  ["pointerup", "pointercancel", "pointerleave"].forEach(ev =>
+    b.addEventListener(ev, stopHold)
+  );
+  window.addEventListener("blur", stopHold);
+
+  /* keyboard users still get a plain activation */
+  b.addEventListener("keydown", e => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); applyStep(b); }
   });
 });
 document.querySelectorAll(".mode-btn").forEach(b => {
@@ -1241,21 +1348,22 @@ document.querySelectorAll(".mode-btn").forEach(b => {
     if (book) renderWord();
   });
 });
-document.getElementById("settingsOpen").addEventListener("click", () => {
+document.getElementById("settingsOpen").addEventListener("click", openSettings);
+document.getElementById("settingsOpenLib").addEventListener("click", openSettings);
+function openSettings() {
   pause();
   syncSettingUI();
   updateAccountUI();
   document.getElementById("settingsModal").classList.add("show");
-});
+}
 document.getElementById("settingsClose").addEventListener("click", () => document.getElementById("settingsModal").classList.remove("show"));
 let resizeT;
 window.addEventListener("resize", () => {
   if (settings.mode === "word" || !book) return;
   clearTimeout(resizeT);
   resizeT = setTimeout(() => {
-    flowApplyMetrics();
-    if (settings.mode === "line") flowBuildWindow();
-    renderFlow();
+    if (settings.mode === "page") { flowApplyMetrics(); renderPage(); }
+    else if (settings.mode === "line") followAutoScroll(true);
   }, 160);
 });
 /* chapter select */
@@ -1369,100 +1477,132 @@ document.getElementById("searchInput").addEventListener("input", e => {
   searchDebounce = setTimeout(() => runSearch(val), 140);
 });
 
-/* full book view */
-const bwScroll = document.getElementById("bwScroll");
-const bwContent = document.getElementById("bwContent");
-const bwSelInfo = document.getElementById("bwSelInfo");
-const BW_BATCH = 1500, BW_MAX = 7000, BW_BACK = 2500;
-let bvStart = 0, bvEnd = 0, bvSel = 0, bvOrig = 0, bwTicking = false;
+/* ============ Follow: scrolling page with progressive read state ============ */
+const followScroll = document.getElementById("followScroll");
+const followContent = document.getElementById("followContent");
+const followBack = document.getElementById("followBack");
+const FW_MAX = 6000, FW_BATCH = 1500, FW_BACK = 2000, FW_EDGE = 400;
+let fwStart = 0, fwEnd = 0, fwLastRead = -1, fwTicking = false, fwUserScrolled = false;
 
-function renderBookWindow() {
-  const w = book.words;
-  let html = "";
-  for (let i = bvStart; i < bvEnd; i++) {
-    let cls = "bw-word";
-    if (i === bvOrig) cls += " bw-current";
-    if (i === bvSel) cls += " bw-sel";
-    html += '<span class="' + cls + '" data-i="' + i + '">' + esc(w[i]) + "</span> ";
+function followBuild() {
+  const words = book.words, paraSet = book.paraSet;
+  fwStart = Math.max(0, idx - FW_BACK);
+  fwEnd = Math.min(words.length, fwStart + FW_MAX);
+  if (fwEnd - fwStart < FW_MAX) fwStart = Math.max(0, fwEnd - FW_MAX);
+  let html = '<p class="fw-p">';
+  for (let i = fwStart; i < fwEnd; i++) {
+    if (i > fwStart && paraSet && paraSet.has(i)) html += '</p><p class="fw-p">';
+    const cls = "fw-word" + (i <= idx ? " fw-read" : "") + (i === idx ? " fw-cur" : "");
+    html += '<span class="' + cls + '" data-i="' + i + '">' + esc(words[i]) + "</span> ";
   }
-  bwContent.innerHTML = html;
+  followContent.innerHTML = html + "</p>";
+  fwLastRead = idx;
 }
-function bwSetWindowAround(i) {
-  bvStart = Math.max(0, i - BW_BACK);
-  bvEnd = Math.min(book.words.length, bvStart + BW_MAX);
-  if (bvEnd - bvStart < BW_MAX) bvStart = Math.max(0, bvEnd - BW_MAX);
-  renderBookWindow();
-}
-function bwFirstVisible() {
-  const spans = bwContent.querySelectorAll(".bw-word");
-  const top = bwScroll.scrollTop;
+function fwFirstVisible() {
+  const spans = followContent.querySelectorAll(".fw-word");
+  if (!spans.length) return null;
+  const top = followScroll.scrollTop;
   let lo = 0, hi = spans.length - 1, ans = 0;
   while (lo <= hi) { const mid = (lo + hi) >> 1; if (spans[mid].offsetTop <= top + 1) { ans = mid; lo = mid + 1; } else hi = mid - 1; }
   return spans[ans];
 }
-function bwExtend(dir) {
-  const anchor = bwFirstVisible();
-  const anchorI = anchor ? +anchor.dataset.i : bvStart;
-  const delta = anchor ? anchor.offsetTop - bwScroll.scrollTop : 0;
-  if (dir < 0) { bvStart = Math.max(0, bvStart - BW_BATCH); if (bvEnd - bvStart > BW_MAX) bvEnd = bvStart + BW_MAX; }
-  else { bvEnd = Math.min(book.words.length, bvEnd + BW_BATCH); if (bvEnd - bvStart > BW_MAX) bvStart = bvEnd - BW_MAX; }
-  renderBookWindow();
-  const a2 = bwContent.querySelector('.bw-word[data-i="' + anchorI + '"]');
-  if (a2) bwScroll.scrollTop = a2.offsetTop - delta;
+/* slide the window while holding the visible text still */
+function fwExtend(dir) {
+  const anchor = fwFirstVisible();
+  const anchorI = anchor ? +anchor.dataset.i : fwStart;
+  const delta = anchor ? anchor.offsetTop - followScroll.scrollTop : 0;
+  if (dir < 0) { fwStart = Math.max(0, fwStart - FW_BATCH); if (fwEnd - fwStart > FW_MAX) fwEnd = fwStart + FW_MAX; }
+  else { fwEnd = Math.min(book.words.length, fwEnd + FW_BATCH); if (fwEnd - fwStart > FW_MAX) fwStart = fwEnd - FW_MAX; }
+  const keep = fwLastRead;
+  followRepaint();
+  fwLastRead = keep;
+  const a2 = followContent.querySelector('.fw-word[data-i="' + anchorI + '"]');
+  if (a2) followScroll.scrollTop = a2.offsetTop - delta;
 }
-function bwUpdateSelInfo() {
-  const w = book.words[bvSel] || "";
-  const pct = (bvSel / (book.words.length - 1) * 100).toFixed(1);
-  bwSelInfo.innerHTML = "At " + pct + "% · <b></b>";
-  bwSelInfo.querySelector("b").textContent = "“" + w + "”";
+function followRepaint() {
+  const words = book.words, paraSet = book.paraSet;
+  let html = '<p class="fw-p">';
+  for (let i = fwStart; i < fwEnd; i++) {
+    if (i > fwStart && paraSet && paraSet.has(i)) html += '</p><p class="fw-p">';
+    const cls = "fw-word" + (i <= idx ? " fw-read" : "") + (i === idx ? " fw-cur" : "");
+    html += '<span class="' + cls + '" data-i="' + i + '">' + esc(words[i]) + "</span> ";
+  }
+  followContent.innerHTML = html + "</p>";
+  fwLastRead = idx;
 }
-function bwCenter(i) {
-  let el = bwContent.querySelector('.bw-word[data-i="' + i + '"]');
-  if (!el) { bwSetWindowAround(i); el = bwContent.querySelector('.bw-word[data-i="' + i + '"]'); }
-  if (el) el.scrollIntoView({ block: "center" });
-}
-function openBookView() {
-  if (!book) return;
-  pause();
-  bvOrig = idx; bvSel = idx;
-  document.getElementById("bwTitle").textContent = book.title;
-  showScreen("bookViewScreen");
-  bwSetWindowAround(idx);
-  bwUpdateSelInfo();
-  requestAnimationFrame(() => bwCenter(idx));
-}
-function closeBookView() { showScreen("readerScreen"); bwContent.innerHTML = ""; }
+function followCurEl() { return followContent.querySelector(".fw-cur"); }
 
-bwScroll.addEventListener("scroll", () => {
-  if (bwTicking) return;
-  bwTicking = true;
+/* keep the current word on screen: once it drops past two thirds, glide it back up */
+function followAutoScroll(force) {
+  const el = followCurEl();
+  if (!el) return;
+  const h = followScroll.clientHeight;
+  const rel = el.offsetTop - followScroll.scrollTop;
+  if (force || rel > h * 0.68 || rel < h * 0.04) {
+    const target = Math.max(0, el.offsetTop - h * 0.22);
+    if (force) followScroll.scrollTop = target;
+    else followScroll.scrollTo({ top: target, behavior: "smooth" });
+    fwUserScrolled = false;
+    followBack.classList.remove("show");
+  }
+}
+function renderFollow() {
+  const needRebuild = !followContent.firstChild || idx < fwLastRead ||
+    idx < fwStart + FW_EDGE && fwStart > 0 ||
+    idx >= fwEnd - FW_EDGE && fwEnd < book.words.length;
+  if (needRebuild) {
+    followBuild();
+    requestAnimationFrame(() => followAutoScroll(true));
+    return;
+  }
+  const prev = followCurEl();
+  if (prev) prev.classList.remove("fw-cur");
+  for (let i = fwLastRead + 1; i <= idx; i++) {
+    const s = followContent.querySelector('.fw-word[data-i="' + i + '"]');
+    if (s) s.classList.add("fw-read");
+  }
+  fwLastRead = idx;
+  const el = followContent.querySelector('.fw-word[data-i="' + idx + '"]');
+  if (el) el.classList.add("fw-cur");
+  if (playing && !fwUserScrolled) followAutoScroll(false);
+  else updateFollowBack();
+}
+function updateFollowBack() {
+  const el = followCurEl();
+  if (!el) { followBack.classList.remove("show"); return; }
+  const rel = el.offsetTop - followScroll.scrollTop;
+  const h = followScroll.clientHeight;
+  followBack.classList.toggle("show", rel < -40 || rel > h - 20);
+}
+
+followScroll.addEventListener("scroll", () => {
+  if (fwTicking) return;
+  fwTicking = true;
   requestAnimationFrame(() => {
-    bwTicking = false;
-    const top = bwScroll.scrollTop, vh = bwScroll.clientHeight, sh = bwScroll.scrollHeight;
-    if (top < 600 && bvStart > 0) bwExtend(-1);
-    else if (top + vh > sh - 600 && bvEnd < book.words.length) bwExtend(1);
+    fwTicking = false;
+    const top = followScroll.scrollTop, vh = followScroll.clientHeight, sh = followScroll.scrollHeight;
+    if (top < 800 && fwStart > 0) fwExtend(-1);
+    else if (top + vh > sh - 800 && fwEnd < book.words.length) fwExtend(1);
+    updateFollowBack();
   });
 });
-bwContent.addEventListener("click", e => {
-  const t = e.target.closest(".bw-word");
-  if (!t) return;
-  const prev = bwContent.querySelector(".bw-sel");
-  if (prev) prev.classList.remove("bw-sel");
-  t.classList.add("bw-sel");
-  bvSel = +t.dataset.i;
-  bwUpdateSelInfo();
+/* tapping: while playing, any tap pauses. while paused, tapping a word moves there. */
+followScroll.addEventListener("click", e => {
+  if (playing) { pause(); return; }
+  const t = e.target.closest(".fw-word");
+  if (!t) { play(); return; }
+  idx = +t.dataset.i;
+  renderWord(); saveProgress(true); cloudPush(true);
+  fwUserScrolled = false;
+  updateFollowBack();
 });
-document.getElementById("bookViewOpen").addEventListener("click", openBookView);
-document.getElementById("bwClose").addEventListener("click", closeBookView);
-document.getElementById("bwRecenter").addEventListener("click", () => bwCenter(bvOrig));
-document.getElementById("bwConfirm").addEventListener("click", () => {
-  idx = bvSel;
-  renderWord(); saveProgress(true);
-  closeBookView();
-});
+followScroll.addEventListener("wheel", () => { if (playing) fwUserScrolled = true; }, { passive: true });
+followScroll.addEventListener("touchmove", () => { if (playing) fwUserScrolled = true; }, { passive: true });
+followBack.addEventListener("click", () => { fwUserScrolled = false; followAutoScroll(true); });
 
 /* export modal */
 document.getElementById("exportBtn").addEventListener("click", () => {
+  document.getElementById("settingsModal").classList.remove("show");
   document.getElementById("exportText").value = makeConfig();
   document.getElementById("exportModal").classList.add("show");
   pause();
@@ -1492,12 +1632,416 @@ document.getElementById("importApply").addEventListener("click", async () => {
   if (ok) document.getElementById("importModal").classList.remove("show");
 });
 
-window.addEventListener("beforeunload", () => saveProgress(true));
+/* tapping the dim area outside a sheet closes it; the press has to both
+   start and end on the backdrop so dragging out of a textarea is safe */
+document.querySelectorAll(".modal-wrap").forEach(wrap => {
+  let downOnBackdrop = false;
+  wrap.addEventListener("pointerdown", e => { downOnBackdrop = e.target === wrap; });
+  wrap.addEventListener("click", e => {
+    if (e.target === wrap && downOnBackdrop) wrap.classList.remove("show");
+    downOnBackdrop = false;
+  });
+});
+
+/* ============ Fullscreen mode ============ */
+/* two separate things happen here: the Fullscreen API hides the browser's own
+   chrome, and a body class hides our footer. iOS Safari on iPhone has no
+   Fullscreen API, so the body class still runs on its own and the reader just
+   gains the footer's worth of space. */
+function fsSupported() {
+  const el = document.documentElement;
+  return !!(el.requestFullscreen || el.webkitRequestFullscreen);
+}
+function fsActive() {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+async function enterFullscreen() {
+  document.body.classList.add("fs");
+  const el = document.documentElement;
+  try {
+    if (el.requestFullscreen) await el.requestFullscreen({ navigationUI: "hide" });
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  } catch (e) {
+    console.warn("fullscreen refused", e);
+  }
+  refreshLayout();
+}
+async function exitFullscreen() {
+  document.body.classList.remove("fs");
+  try {
+    if (document.exitFullscreen && document.fullscreenElement) await document.exitFullscreen();
+    else if (document.webkitExitFullscreen && document.webkitFullscreenElement) document.webkitExitFullscreen();
+  } catch (e) {
+    console.warn(e);
+  }
+  refreshLayout();
+}
+/* the visible area changes size going in and out, so the text modes need a
+   remeasure or lines wrap against stale metrics */
+function refreshLayout() {
+  setTimeout(() => {
+    if (!book) return;
+    if (settings.mode === "page") { flowApplyMetrics(); renderPage(); }
+    else if (settings.mode === "line") { fwLastRead = -1; followBuild(); followAutoScroll(true); }
+  }, 250);
+}
+
+document.getElementById("fsOpen").addEventListener("click", () => {
+  if (document.body.classList.contains("fs")) exitFullscreen();
+  else enterFullscreen();
+});
+document.getElementById("fsExit").addEventListener("click", exitFullscreen);
+
+/* Esc, the browser's own exit affordance, or a swipe out of fullscreen all
+   fire this. keep our footer in sync with whatever the browser decided. */
+["fullscreenchange", "webkitfullscreenchange"].forEach(ev =>
+  document.addEventListener(ev, () => {
+    if (!fsActive() && fsSupported()) {
+      document.body.classList.remove("fs");
+      refreshLayout();
+    }
+  })
+);
+
+/* leaving the reader should never strand you in fullscreen */
+document.getElementById("backBtn").addEventListener("click", () => {
+  if (document.body.classList.contains("fs")) exitFullscreen();
+});
+
+window.addEventListener("beforeunload", () => { saveProgress(true); clockStop(); });
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) { pause(); cloudPush(true); }
 });
 
-/* ============ Cloud sync (Firebase, loaded on demand) ============ */
+/* ============ Reading stats ============ */
+let stats = { wordsRead: 0, msRead: 0 };
+let playStart = 0, statsDirty = false;
+
+async function loadStats() {
+  stats = await getMeta("stats:" + book.id) || { wordsRead: 0, msRead: 0 };
+}
+function saveStats(force) {
+  if (!book || (!statsDirty && !force)) return;
+  statsDirty = false;
+  setMeta("stats:" + book.id, stats);
+}
+function countWord(n) {
+  if (n > 0 && n < 20) { stats.wordsRead += n; statsDirty = true; }
+}
+function clockStart() { playStart = Date.now(); }
+function clockStop() {
+  if (!playStart) return;
+  stats.msRead += Date.now() - playStart;
+  playStart = 0; statsDirty = true;
+  saveStats(true);
+}
+function liveMs() { return stats.msRead + (playStart ? Date.now() - playStart : 0); }
+function fmtDuration(ms) {
+  const s = Math.round(ms / 1000);
+  if (s < 60) return s + "s";
+  const m = Math.floor(s / 60);
+  if (m < 60) return m + "m";
+  const h = Math.floor(m / 60);
+  return h + "h " + (m % 60) + "m";
+}
+function fmtCount(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
+  if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "k";
+  return String(n);
+}
+
+async function openStatsModal() {
+  pause();
+  const grid = document.getElementById("statGrid");
+  const note = document.getElementById("statNote");
+  document.getElementById("statHead").textContent = book.title;
+  let words = stats.wordsRead, ms = liveMs(), pooled = false;
+
+  // if signed in, pool this book's totals across every device
+  if (fbUser && fb) {
+    try {
+      const snap = await fb.F.getDoc(fb.F.doc(fb.db, "users", fbUser.uid, "books", book.id));
+      if (snap.exists()) {
+        const devs = snap.data().devices || {};
+        let w = 0, m = 0;
+        for (const [id, d] of Object.entries(devs)) {
+          if (id === deviceId) continue;
+          w += d.wordsRead || 0; m += d.msRead || 0;
+        }
+        if (w || m) { words += w; ms += m; pooled = true; }
+      }
+    } catch (e) { console.warn(e); }
+  }
+
+  const avg = ms > 5000 ? Math.round(words / (ms / 60000)) : 0;
+  const left = book.words.length - 1 - idx;
+  const etaMin = avg > 0 ? left / avg : 0;
+  const pct = (idx / (book.words.length - 1) * 100).toFixed(1);
+
+  const cells = [
+    [fmtCount(words), "words read"],
+    [fmtDuration(ms), "time reading"],
+    [avg ? avg + " wpm" : "—", "average pace"],
+    [avg ? fmtDuration(etaMin * 60000) : "—", "left at that pace"],
+    [pct + "%", "through the book"],
+    [fmtCount(left), "words remaining"]
+  ];
+  grid.innerHTML = cells.map(c =>
+    '<div class="stat-cell"><div class="sv">' + esc(c[0]) + '</div><div class="sl">' + esc(c[1]) + "</div></div>"
+  ).join("");
+  note.textContent = pooled
+    ? "Totals include reading done on your other signed-in devices."
+    : "Counted only while the reader is playing.";
+  document.getElementById("statsModal").classList.add("show");
+}
+
+document.getElementById("statsBtn").addEventListener("click", () => {
+  if (!book) return;
+  openStatsModal();
+});
+document.getElementById("statsClose").addEventListener("click", () => {
+  document.getElementById("statsModal").classList.remove("show");
+});
+document.getElementById("statsReset").addEventListener("click", () => {
+  if (!book) return;
+  stats = { wordsRead: 0, msRead: 0 };
+  playStart = 0;
+  statsDirty = true;
+  saveStats(true);
+  toast("Stats reset");
+  openStatsModal();
+});
+
+/* ============ Narration ============ */
+let voices = [], ttsChunk = null, ttsOn = false;
+let interpTimer = null, boundaryMode = false, boundaryWatch = null;
+let charsPerSec = 0;      // learned from completed chunks
+let measuredWpm = 0;      // what the engine actually delivers
+let rateBias = 1;         // closed-loop correction toward the requested wpm
+let ttsQueued = 0, queueEnd = 0, ttsWatchdog = null;
+
+function speechAvailable() { return typeof speechSynthesis !== "undefined"; }
+function loadVoices() {
+  if (!speechAvailable()) return;
+  voices = speechSynthesis.getVoices() || [];
+  const sel = document.getElementById("voiceSelect");
+  if (!sel) return;
+  const lang = (navigator.language || "en").slice(0, 2).toLowerCase();
+  const ranked = voices.slice().sort((a, b) => {
+    const s = v => (v.localService ? 2 : 0) + (v.lang.toLowerCase().startsWith(lang) ? 1 : 0);
+    return s(b) - s(a);
+  });
+  sel.innerHTML = ranked.map(v =>
+    '<option value="' + esc(v.voiceURI) + '">' + esc(v.name) + " · " + esc(v.lang) +
+    (v.localService ? "" : " (network)") + "</option>"
+  ).join("");
+  if (!settings.voiceURI && ranked.length) { settings.voiceURI = ranked[0].voiceURI; saveSettings(); }
+  if (settings.voiceURI) sel.value = settings.voiceURI;
+}
+function currentVoice() {
+  return voices.find(v => v.voiceURI === settings.voiceURI) || voices[0] || null;
+}
+function speechRate() {
+  // rate 1.0 is roughly 180 wpm; rateBias closes the loop toward the requested speed
+  return Math.min(Math.max((settings.wpm / 180) * rateBias, 0.5), 6);
+}
+/* the display always shows the real punctuation; only the spoken string is softened.
+   engines insert a long pause at a full stop, so at low Pause settings we drop it. */
+function spokenText(chunk) {
+  let t = chunk.text;
+  const pi = settings.pauseIntensity;
+  if (pi <= 0.4) t = t.replace(/[.?!…]+(["'”’)]*)(\s|$)/g, "$1$2").replace(/[,;:]+(\s|$)/g, "$1");
+  else if (pi <= 0.9) t = t.replace(/[.?!…]+(["'”’)]*)(\s|$)/g, ",$1$2");
+  return t;
+}
+
+/* Chrome has real latency between separate utterances even when queued, so the way
+   to sound continuous is fewer joins: size each utterance to about ten seconds of
+   speech (staying under Chrome's ~15s cutoff) and break it at a sentence where we can. */
+function targetChars() {
+  const cps = charsPerSec || (15 * speechRate());
+  return Math.min(Math.max(Math.round(cps * 10), 180), 700);
+}
+function packChunk(start, words) {
+  const offsets = [];
+  let chars = 0;
+  for (let k = 0; k < words.length; k++) {
+    offsets.push(chars + (k ? 1 : 0));
+    chars += (k ? 1 : 0) + words[k].length;
+  }
+  return { start, count: words.length, text: words.join(" "), offsets };
+}
+function buildChunk(start) {
+  const words = book.words, len = words.length;
+  const MAXC = targetChars();
+  const MINC = Math.round(MAXC * 0.55);
+  const out = [];
+  let chars = 0, i = start, lastSoft = -1, hitChapter = false;
+  while (i < len) {
+    const w = words[i];
+    if (out.length && chars + 1 + w.length > MAXC) break;
+    chars += (out.length ? 1 : 0) + w.length;
+    out.push(w);
+    i++;
+    if (book.chapters.some(c => c.start === i)) { hitChapter = true; break; }
+    if (chars >= MINC) {
+      if (/[.?!…]["'”’)]*$/.test(w)) break;                 // ideal: end on a sentence
+      if (/[,;:]["'”’)]*$/.test(w)) lastSoft = out.length;  // fallback break point
+    }
+  }
+  if (!out.length) return null;
+  // if we ran into the character cap mid-sentence, back up to the last clause break
+  const ended = out.length && /[.?!…]["'”’)]*$/.test(out[out.length - 1]);
+  if (!ended && !hitChapter && lastSoft > 0 && lastSoft < out.length) out.length = lastSoft;
+  return packChunk(start, out);
+}
+function chunkWordAt(chunk, charIndex) {
+  const o = chunk.offsets;
+  let lo = 0, hi = o.length - 1, ans = 0;
+  while (lo <= hi) { const mid = (lo + hi) >> 1; if (o[mid] <= charIndex) { ans = mid; lo = mid + 1; } else hi = mid - 1; }
+  return ans;
+}
+function ttsAdvanceTo(chunk, wordInChunk) {
+  const target = Math.min(chunk.start + wordInChunk, book.words.length - 1);
+  if (target === idx) return;
+  countWord(target - idx);
+  idx = target;
+  renderWord();
+  saveProgress(false);
+  cloudPush(false);
+}
+function clearInterp() { clearTimeout(interpTimer); interpTimer = null; }
+
+/* interpolation drives the highlight when the engine reports no word boundaries,
+   and is corrected at every chunk end so error never accumulates */
+function startInterp(chunk) {
+  clearInterp();
+  const cps = charsPerSec || (15 * speechRate());
+  const total = (chunk.text.length / cps) * 1000;
+  let w = 0;
+  const step = () => {
+    if (!ttsOn || boundaryMode || ttsChunk !== chunk) return;
+    w++;
+    if (w >= chunk.count) return;
+    ttsAdvanceTo(chunk, w);
+    const share = ((chunk.offsets[w + 1] || chunk.text.length) - chunk.offsets[w]) / chunk.text.length;
+    interpTimer = setTimeout(step, Math.max(30, total * share));
+  };
+  const first = (chunk.offsets[1] || chunk.text.length) / chunk.text.length;
+  interpTimer = setTimeout(step, Math.max(30, total * first));
+}
+
+function updateReadout() {
+  const el = document.getElementById("narrReadout");
+  if (!el) return;
+  if (!settings.narration) { el.textContent = ""; return; }
+  el.textContent = measuredWpm
+    ? "narrating ~" + Math.round(measuredWpm) + " wpm  ·  asking for " + settings.wpm
+    : "narrating · measuring…";
+}
+
+function makeUtterance(chunk) {
+  const u = new SpeechSynthesisUtterance(spokenText(chunk));
+  const v = currentVoice();
+  if (v) { u.voice = v; u.lang = v.lang; }
+  u.rate = speechRate();
+  let began = 0;
+
+  u.onstart = () => {
+    if (!ttsOn) return;
+    ttsChunk = chunk;
+    began = Date.now();
+    boundaryMode = false;
+    startInterp(chunk);
+  };
+  u.onboundary = e => {
+    if (!ttsOn || e.name === "sentence" || ttsChunk !== chunk) return;
+    boundaryMode = true;
+    clearInterp();
+    clearTimeout(boundaryWatch);
+    ttsAdvanceTo(chunk, chunkWordAt(chunk, e.charIndex || 0));
+    boundaryWatch = setTimeout(() => { boundaryMode = false; startInterp(chunk); }, 1400);
+  };
+  u.onend = () => {
+    if (!ttsOn) return;
+    clearTimeout(boundaryWatch);
+    clearInterp();
+    // free this slot FIRST, so the refill below actually happens while the
+    // next utterance is still playing. decrementing after was the gap.
+    ttsQueued = Math.max(0, ttsQueued - 1);
+    const secs = began ? (Date.now() - began) / 1000 : 0;
+    if (secs > 0.3) {
+      const measured = u.text.length / secs;
+      charsPerSec = charsPerSec ? charsPerSec * 0.7 + measured * 0.3 : measured;
+      const wpm = chunk.count / secs * 60;
+      measuredWpm = measuredWpm ? measuredWpm * 0.7 + wpm * 0.3 : wpm;
+      // nudge the rate toward the requested speed, within what the engine will do
+      const ratio = settings.wpm / measuredWpm;
+      if (Math.abs(ratio - 1) > 0.06) rateBias = Math.min(Math.max(rateBias * (1 + (ratio - 1) * 0.35), 0.5), 3);
+      updateReadout();
+    }
+    ttsAdvanceTo(chunk, chunk.count - 1);
+    ttsQueueAhead();
+    if (queueEnd >= book.words.length && ttsQueued === 0) { pause(); toast("End of book"); }
+  };
+  u.onerror = () => { if (ttsOn) { clearInterp(); pause(); toast("Narration stopped"); } };
+  return u;
+}
+
+/* Keep several utterances inside the engine's own queue. The engine plays queued
+   utterances back to back internally; a gap only appears when it runs dry and has
+   to wait for JS to hand it the next one. */
+const QUEUE_DEPTH = 4;
+function ttsQueueAhead() {
+  while (ttsOn && ttsQueued < QUEUE_DEPTH && queueEnd < book.words.length) {
+    const chunk = buildChunk(queueEnd);
+    if (!chunk) break;
+    queueEnd = chunk.start + chunk.count;
+    ttsQueued++;
+    speechSynthesis.speak(makeUtterance(chunk));
+  }
+}
+/* Chrome sometimes drops the queue silently on long sessions. Only act after two
+   consecutive idle checks, so the brief gap between utterances never triggers it,
+   and cancel first so we can't end up with duplicate audio queued. */
+let ttsIdleTicks = 0;
+function ttsWatchdogTick() {
+  if (!ttsOn || !speechAvailable()) return;
+  if (speechSynthesis.speaking || speechSynthesis.pending) { ttsIdleTicks = 0; return; }
+  if (++ttsIdleTicks < 2) return;
+  ttsIdleTicks = 0;
+  speechSynthesis.cancel();
+  ttsQueued = 0;
+  queueEnd = idx;
+  ttsQueueAhead();
+}
+function ttsStart() {
+  if (!speechAvailable()) { toast("Narration not supported here"); return false; }
+  if (!voices.length) loadVoices();
+  ttsOn = true;
+  speechSynthesis.cancel();
+  ttsQueued = 0;
+  ttsIdleTicks = 0;
+  queueEnd = idx;
+  updateReadout();
+  ttsQueueAhead();
+  clearInterval(ttsWatchdog);
+  ttsWatchdog = setInterval(ttsWatchdogTick, 1500);
+  return true;
+}
+function ttsStop() {
+  ttsOn = false;
+  clearInterval(ttsWatchdog); ttsWatchdog = null;
+  clearInterp();
+  clearTimeout(boundaryWatch);
+  boundaryMode = false;
+  ttsChunk = null;
+  ttsQueued = 0;
+  if (speechAvailable()) speechSynthesis.cancel();
+  updateReadout();
+}
+
+
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyCGb_nbEwAa66Tf7CYCPMdg3_HiQC5cDsI",
   authDomain: "focused-reader.firebaseapp.com",
@@ -1581,7 +2125,9 @@ async function cloudPush(force) {
     index: idx,
     pct: +(idx / (book.words.length - 1) * 100).toFixed(2),
     updatedAt: Date.now(),
-    name: deviceName
+    name: deviceName,
+    wordsRead: stats.wordsRead,
+    msRead: liveMs()
   };
   try {
     await setDoc(doc(fb.db, "users", fbUser.uid, "books", book.id), {
@@ -1761,6 +2307,10 @@ document.getElementById("sbClose").addEventListener("click", hideBanner);
   await loadSettings();
   await renderLibrary();
   updateAccountUI();
+  if (speechAvailable()) {
+    loadVoices();
+    speechSynthesis.addEventListener("voiceschanged", loadVoices);
+  }
   if (syncSupported() && await getMeta("wantsSync")) {
     loadFirebase().catch(e => console.warn("firebase load failed", e));
   }
