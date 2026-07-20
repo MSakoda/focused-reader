@@ -207,6 +207,37 @@
   }
   #ctxRow.hidden { display: none; }
 
+  /* ---------- Sync ---------- */
+  .sync-banner {
+    display: none; align-items: center; gap: 10px;
+    margin: 0 14px 6px; padding: 10px 12px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  }
+  .sync-banner.show { display: flex; }
+  .sb-text { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.35; color: var(--ink); }
+  .sb-text b { font-weight: 600; }
+  .sb-text span { color: var(--muted); }
+  .sb-jump {
+    flex: 0 0 auto; padding: 7px 13px; border-radius: 8px; border: none;
+    background: var(--ink); color: var(--bg); font-size: 12.5px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  .sb-x {
+    flex: 0 0 auto; background: none; border: none; color: var(--muted);
+    font-size: 14px; cursor: pointer; padding: 4px 2px; font-family: inherit;
+  }
+  .acct-box { flex: 1; min-width: 0; }
+  .acct-status { font-size: 12.5px; color: var(--ink); margin-bottom: 8px; word-break: break-all; }
+  .acct-status.muted { color: var(--muted); }
+  .acct-btns { display: flex; gap: 8px; }
+  .acct-btns .btn { padding: 9px; font-size: 12.5px; }
+  .dev-input {
+    flex: 1; min-width: 0; background: var(--bg); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 9px; padding: 10px 11px;
+    font-family: inherit; font-size: 13px;
+  }
+  .dev-input:focus { outline: none; border-color: var(--muted); }
+
   .tap-hint { position: absolute; bottom: 14px; left: 0; right: 0; text-align: center; font-size: 11.5px; color: var(--muted); opacity: 0.8; }
   .chapter-flash {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
@@ -362,6 +393,12 @@
     <button class="icon-btn" id="themeBtn">◐</button>
   </div>
 
+  <div class="sync-banner" id="syncBanner">
+    <div class="sb-text" id="sbText"></div>
+    <button class="sb-jump" id="sbJump">Jump</button>
+    <button class="sb-x" id="sbClose" aria-label="Dismiss">✕</button>
+  </div>
+
   <div class="stage" id="stage">
     <div class="rails">
       <div class="rail-line top"></div>
@@ -507,6 +544,20 @@
         <div class="step-val" id="setCtx">±2 lines</div>
         <button class="step-btn" data-set="ctxLines" data-dir="1">+</button>
       </div>
+    </div>
+    <div class="set-row">
+      <div class="set-label">Account</div>
+      <div class="acct-box">
+        <div class="acct-status" id="acctStatus">Not signed in</div>
+        <div class="acct-btns">
+          <button class="btn" id="authBtn">Sign in with Google</button>
+          <button class="btn" id="syncNowBtn" style="display:none">Sync now</button>
+        </div>
+      </div>
+    </div>
+    <div class="set-row" id="deviceRow" style="display:none">
+      <div class="set-label">Device</div>
+      <input type="text" id="deviceNameInput" class="dev-input" placeholder="This device" maxlength="40">
     </div>
     <div class="btn-row">
       <button class="btn primary" id="settingsClose">Done</button>
@@ -759,6 +810,9 @@ async function openBook(id) {
   showScreen("readerScreen");
   applyMode();
   renderWord();
+  hideBanner();
+  lastPush = Date.now();
+  checkCloudPosition();
 }
 function showScreen(name) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -1037,6 +1091,7 @@ function pause() {
   document.getElementById("playBtn").textContent = "▶";
   document.getElementById("tapHint").style.opacity = "0.8";
   saveProgress(true);
+  cloudPush(true);
 }
 function tick() {
   if (!playing) return;
@@ -1045,6 +1100,7 @@ function tick() {
   const nextIsChapter = book.chapters.some(c => c.start === idx + 1);
   const d = delayFor(w, nextIsChapter);
   saveProgress(false);
+  cloudPush(false);
   timer = setTimeout(() => {
     if (idx >= book.words.length - 1) { pause(); toast("End of book"); return; }
     idx++;
@@ -1141,10 +1197,10 @@ document.getElementById("fileInput").addEventListener("change", async e => {
   }
 });
 
-document.getElementById("backBtn").addEventListener("click", () => { pause(); showScreen("libraryScreen"); renderLibrary(); });
+document.getElementById("backBtn").addEventListener("click", () => { pause(); cloudPush(true); hideBanner(); showScreen("libraryScreen"); renderLibrary(); });
 document.getElementById("themeBtn").addEventListener("click", () => {
   settings.theme = settings.theme === "dark" ? "light" : "dark";
-  applyTheme(); saveSettings();
+  applyTheme(); saveSettings(); queueSettingsPush();
 });
 document.getElementById("stage").addEventListener("click", () => playing ? pause() : play());
 flowStage.addEventListener("click", () => playing ? pause() : play());
@@ -1166,6 +1222,7 @@ document.querySelectorAll(".step-btn").forEach(b => {
     settings[key] = v;
     saveSettings();
     syncSettingUI();
+    if (key === "wpm" || key === "pauseIntensity") queueSettingsPush();
     if (settings.mode !== "word" && book && (key === "fontSize" || key === "ctxLines")) {
       flowApplyMetrics();
       if (settings.mode === "line") flowBuildWindow();
@@ -1180,12 +1237,14 @@ document.querySelectorAll(".mode-btn").forEach(b => {
     saveSettings();
     syncSettingUI();
     applyMode();
+    queueSettingsPush();
     if (book) renderWord();
   });
 });
 document.getElementById("settingsOpen").addEventListener("click", () => {
   pause();
   syncSettingUI();
+  updateAccountUI();
   document.getElementById("settingsModal").classList.add("show");
 });
 document.getElementById("settingsClose").addEventListener("click", () => document.getElementById("settingsModal").classList.remove("show"));
@@ -1434,13 +1493,277 @@ document.getElementById("importApply").addEventListener("click", async () => {
 });
 
 window.addEventListener("beforeunload", () => saveProgress(true));
-document.addEventListener("visibilitychange", () => { if (document.hidden) { pause(); } });
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { pause(); cloudPush(true); }
+});
+
+/* ============ Cloud sync (Firebase, loaded on demand) ============ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCGb_nbEwAa66Tf7CYCPMdg3_HiQC5cDsI",
+  authDomain: "focused-reader.firebaseapp.com",
+  projectId: "focused-reader",
+  storageBucket: "focused-reader.firebasestorage.app",
+  messagingSenderId: "514889674290",
+  appId: "1:514889674290:web:72873cfb9208ec6c87162b"
+};
+const FB_VERSION = "12.16.0";
+const PUSH_INTERVAL = 45000;   // while reading
+const JUMP_THRESHOLD = 40;     // words; ignore trivial differences
+
+let fb = null, fbUser = null, deviceId = null, deviceName = "";
+let lastPush = 0, bannerTarget = null, settingsPushT = null;
+
+/* sign-in needs a real web origin; file:// has none to authorise */
+function syncSupported() {
+  return location.protocol === "https:" ||
+         location.hostname === "localhost" || location.hostname === "127.0.0.1";
+}
+async function loadFirebase() {
+  if (fb) return fb;
+  const base = "https://www.gstatic.com/firebasejs/" + FB_VERSION + "/";
+  const [appMod, authMod, fsMod] = await Promise.all([
+    import(base + "firebase-app.js"),
+    import(base + "firebase-auth.js"),
+    import(base + "firebase-firestore.js")
+  ]);
+  const app = appMod.initializeApp(FIREBASE_CONFIG);
+  fb = { auth: authMod.getAuth(app), db: fsMod.getFirestore(app), A: authMod, F: fsMod };
+  fb.A.onAuthStateChanged(fb.auth, async user => {
+    fbUser = user;
+    updateAccountUI();
+    if (user) {
+      await setMeta("wantsSync", true);
+      await pullSettings();
+      if (book) checkCloudPosition();
+    }
+  });
+  return fb;
+}
+async function ensureDevice() {
+  deviceId = await getMeta("deviceId");
+  if (!deviceId) {
+    deviceId = "d-" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+    await setMeta("deviceId", deviceId);
+  }
+  deviceName = await getMeta("deviceName") || guessDeviceName();
+  const input = document.getElementById("deviceNameInput");
+  if (input) input.value = deviceName;
+}
+function guessDeviceName() {
+  const ua = navigator.userAgent;
+  const plat = /iPhone/.test(ua) ? "iPhone"
+    : /iPad/.test(ua) ? "iPad"
+    : /Android/.test(ua) ? "Android"
+    : /Macintosh/.test(ua) ? "Mac"
+    : /Windows/.test(ua) ? "Windows"
+    : "This device";
+  return plat;
+}
+function timeAgo(ts) {
+  const s = Math.max(0, (Date.now() - ts) / 1000);
+  if (s < 90) return "just now";
+  const m = s / 60;
+  if (m < 60) return Math.round(m) + " min ago";
+  const h = m / 60;
+  if (h < 24) return Math.round(h) + (Math.round(h) === 1 ? " hour ago" : " hours ago");
+  const d = h / 24;
+  if (d < 7) return Math.round(d) + (Math.round(d) === 1 ? " day ago" : " days ago");
+  return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+/* --- writes: this device only ever touches its own entry --- */
+async function cloudPush(force) {
+  if (!fbUser || !book || !fb) return;
+  if (!force && Date.now() - lastPush < PUSH_INTERVAL) return;
+  lastPush = Date.now();
+  const { doc, setDoc } = fb.F;
+  const entry = {
+    index: idx,
+    pct: +(idx / (book.words.length - 1) * 100).toFixed(2),
+    updatedAt: Date.now(),
+    name: deviceName
+  };
+  try {
+    await setDoc(doc(fb.db, "users", fbUser.uid, "books", book.id), {
+      title: book.title,
+      totalWords: book.words.length,
+      devices: { [deviceId]: entry }
+    }, { merge: true });
+  } catch (e) { console.warn("sync push failed", e); }
+}
+async function pushSettings() {
+  if (!fbUser || !fb) return;
+  const { doc, setDoc } = fb.F;
+  try {
+    await setDoc(doc(fb.db, "users", fbUser.uid, "meta", "settings"), {
+      wpm: settings.wpm,
+      pauseIntensity: settings.pauseIntensity,
+      mode: settings.mode,
+      theme: settings.theme,
+      updatedAt: Date.now()
+    }, { merge: true });
+    await setMeta("settingsSyncedAt", Date.now());
+  } catch (e) { console.warn("settings push failed", e); }
+}
+function queueSettingsPush() {
+  if (!fbUser) return;
+  clearTimeout(settingsPushT);
+  settingsPushT = setTimeout(pushSettings, 4000);
+}
+async function pullSettings() {
+  if (!fbUser || !fb) return;
+  const { doc, getDoc } = fb.F;
+  try {
+    const snap = await getDoc(doc(fb.db, "users", fbUser.uid, "meta", "settings"));
+    if (!snap.exists()) return;
+    const d = snap.data();
+    const localAt = await getMeta("settingsSyncedAt") || 0;
+    if (!d.updatedAt || d.updatedAt <= localAt) return;
+    // font size and context stay per-device: they describe the screen, not the reader
+    if (typeof d.wpm === "number") settings.wpm = d.wpm;
+    if (typeof d.pauseIntensity === "number") settings.pauseIntensity = d.pauseIntensity;
+    if (d.mode === "word" || d.mode === "page" || d.mode === "line") settings.mode = d.mode;
+    if (d.theme === "light" || d.theme === "dark") settings.theme = d.theme;
+    saveSettings();
+    await setMeta("settingsSyncedAt", d.updatedAt);
+    applyTheme(); syncSettingUI(); applyMode();
+    if (book) renderWord();
+  } catch (e) { console.warn("settings pull failed", e); }
+}
+
+/* --- read: offer the most recent position written by another device --- */
+async function checkCloudPosition() {
+  hideBanner();
+  if (!fbUser || !book || !fb) return;
+  const { doc, getDoc } = fb.F;
+  let snap;
+  try {
+    snap = await getDoc(doc(fb.db, "users", fbUser.uid, "books", book.id));
+  } catch (e) { console.warn("sync read failed", e); return; }
+  if (!snap.exists()) return;
+  const data = snap.data();
+  const devices = data.devices || {};
+  const mine = devices[deviceId];
+  let best = null;
+  for (const [id, d] of Object.entries(devices)) {
+    if (id === deviceId || !d || typeof d.updatedAt !== "number") continue;
+    if (!best || d.updatedAt > best.updatedAt) best = d;
+  }
+  if (!best) return;
+  // most-recent wins rather than furthest, so deliberate backtracking is respected
+  if (mine && mine.updatedAt >= best.updatedAt) return;
+
+  // a different edition of the same book will not share word indices
+  let target;
+  if (typeof data.totalWords === "number" && data.totalWords === book.words.length
+      && typeof best.index === "number") {
+    target = best.index;
+  } else if (typeof best.pct === "number") {
+    target = Math.round(best.pct / 100 * (book.words.length - 1));
+  } else return;
+  target = Math.min(Math.max(target, 0), book.words.length - 1);
+  if (Math.abs(target - idx) < JUMP_THRESHOLD) return;
+
+  bannerTarget = target;
+  const pct = (target / (book.words.length - 1) * 100).toFixed(1);
+  const t = document.getElementById("sbText");
+  t.innerHTML = "";
+  const b = document.createElement("b");
+  b.textContent = best.name || "Another device";
+  const rest = document.createElement("span");
+  rest.textContent = " was at " + pct + "% · " + timeAgo(best.updatedAt);
+  t.appendChild(b); t.appendChild(rest);
+  document.getElementById("syncBanner").classList.add("show");
+}
+function hideBanner() {
+  bannerTarget = null;
+  document.getElementById("syncBanner").classList.remove("show");
+}
+
+/* --- account UI --- */
+function updateAccountUI() {
+  const status = document.getElementById("acctStatus");
+  const btn = document.getElementById("authBtn");
+  const sync = document.getElementById("syncNowBtn");
+  const devRow = document.getElementById("deviceRow");
+  if (!syncSupported()) {
+    status.textContent = "Sync needs the app opened from its web address, not a local file.";
+    status.classList.add("muted");
+    btn.style.display = "none"; sync.style.display = "none"; devRow.style.display = "none";
+    return;
+  }
+  if (fbUser) {
+    status.textContent = fbUser.email || "Signed in";
+    status.classList.remove("muted");
+    btn.textContent = "Sign out";
+    sync.style.display = "";
+    devRow.style.display = "";
+  } else {
+    status.textContent = "Not signed in. Progress stays on this device.";
+    status.classList.add("muted");
+    btn.textContent = "Sign in with Google";
+    btn.style.display = "";
+    sync.style.display = "none";
+    devRow.style.display = "none";
+  }
+}
+document.getElementById("authBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("authBtn");
+  try {
+    await loadFirebase();
+    if (fbUser) {
+      await fb.A.signOut(fb.auth);
+      await setMeta("wantsSync", false);
+      toast("Signed out");
+      return;
+    }
+    btn.disabled = true; btn.textContent = "Opening…";
+    // popup rather than redirect: this app is not on Firebase Hosting, so the
+    // redirect flow's cross-origin iframe is blocked by Safari and friends
+    await fb.A.signInWithPopup(fb.auth, new fb.A.GoogleAuthProvider());
+    toast("Signed in");
+  } catch (e) {
+    console.warn(e);
+    toast(e && e.code === "auth/popup-blocked" ? "Allow popups to sign in" : "Sign-in failed");
+  } finally {
+    btn.disabled = false;
+    updateAccountUI();
+  }
+});
+document.getElementById("syncNowBtn").addEventListener("click", async () => {
+  if (!fbUser) return;
+  await cloudPush(true);
+  await pullSettings();
+  if (book) await checkCloudPosition();
+  toast("Synced");
+});
+document.getElementById("deviceNameInput").addEventListener("change", async e => {
+  deviceName = e.target.value.trim() || guessDeviceName();
+  e.target.value = deviceName;
+  await setMeta("deviceName", deviceName);
+  cloudPush(true);
+});
+document.getElementById("sbJump").addEventListener("click", () => {
+  if (bannerTarget == null) return;
+  pause();
+  idx = bannerTarget;
+  renderWord(); saveProgress(true);
+  hideBanner();
+  cloudPush(true);
+});
+/* dismissing writes nothing, so both records stand until the next natural write */
+document.getElementById("sbClose").addEventListener("click", hideBanner);
 
 /* ============ Boot ============ */
 (async function init() {
   await openDB();
+  await ensureDevice();
   await loadSettings();
   await renderLibrary();
+  updateAccountUI();
+  if (syncSupported() && await getMeta("wantsSync")) {
+    loadFirebase().catch(e => console.warn("firebase load failed", e));
+  }
 })();
 </script>
 </body>
