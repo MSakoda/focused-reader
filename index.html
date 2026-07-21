@@ -1707,13 +1707,23 @@ async function exitFullscreen() {
   markFsTransitionDone();
 }
 /* the visible area changes size going in and out, so the text modes need a
-   remeasure or lines wrap against stale metrics */
+   remeasure or lines wrap against stale metrics. on iOS there's no real
+   Fullscreen API (see enterFullscreen) — the resize is just a CSS class
+   flipping a flex sibling's display, so no window "resize" event fires at
+   all, and WebKit can lag a beat before .follow-scroll's own clientHeight
+   reflects the new size. a single guessed setTimeout can land before that
+   settles, leaving auto-scroll's math permanently anchored to a stale,
+   too-small height. wait for real settled frames (double rAF) and re-run the
+   sync a couple more times as a safety net instead of trusting one delay. */
 function refreshLayout() {
-  setTimeout(() => {
+  const run = () => {
     if (!book) return;
     if (settings.mode === "page") { flowApplyMetrics(); renderPage(); }
-    else if (settings.mode === "line") { fwLastRead = -1; followBuild(); followAutoScroll(true); }
-  }, 250);
+    else if (settings.mode === "line") { fwUserScrolled = false; fwLastRead = -1; followBuild(); followAutoScroll(true); }
+  };
+  requestAnimationFrame(() => requestAnimationFrame(run));
+  setTimeout(run, 300);
+  setTimeout(run, 700);
 }
 
 document.getElementById("fsOpen").addEventListener("click", () => {
