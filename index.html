@@ -1348,6 +1348,12 @@ document.querySelectorAll(".mode-btn").forEach(b => {
     if (book) renderWord();
   });
 });
+document.getElementById("voiceSelect").addEventListener("change", e => {
+  settings.voiceURI = e.target.value;
+  saveSettings();
+  queueSettingsPush();
+  if (ttsOn) { speechSynthesis.cancel(); ttsQueued = 0; queueEnd = idx; ttsQueueAhead(); }
+});
 document.querySelectorAll(".narr-btn").forEach(b => {
   b.addEventListener("click", () => {
     const on = b.dataset.narr === "1";
@@ -1832,6 +1838,33 @@ let rateBias = 1;         // closed-loop correction toward the requested wpm
 let ttsQueued = 0, queueEnd = 0, ttsWatchdog = null;
 
 function speechAvailable() { return typeof speechSynthesis !== "undefined"; }
+
+/* network voices call out to a remote TTS backend that may be unreachable (offline,
+   firewall, browser policy); the engine then just drops the utterance with no error.
+   probe each network voice once with a silent utterance so unusable ones never
+   show up in the list at all. */
+const voiceProbeCache = new Map(); // voiceURI -> true/false, settled only
+const voiceProbePending = new Set();
+function probeVoice(v) {
+  if (voiceProbePending.has(v.voiceURI)) return;
+  voiceProbePending.add(v.voiceURI);
+  const u = new SpeechSynthesisUtterance(" ");
+  u.voice = v;
+  u.volume = 0;
+  let done = false;
+  const finish = ok => {
+    if (done) return;
+    done = true;
+    voiceProbePending.delete(v.voiceURI);
+    voiceProbeCache.set(v.voiceURI, ok);
+    loadVoices();
+  };
+  u.onstart = () => finish(true);
+  u.onend = () => finish(true);
+  u.onerror = () => finish(false);
+  setTimeout(() => finish(false), 1500);
+  speechSynthesis.speak(u);
+}
 function loadVoices() {
   if (!speechAvailable()) return;
   voices = speechSynthesis.getVoices() || [];
@@ -1842,11 +1875,19 @@ function loadVoices() {
     const s = v => (v.localService ? 2 : 0) + (v.lang.toLowerCase().startsWith(lang) ? 1 : 0);
     return s(b) - s(a);
   });
-  sel.innerHTML = ranked.map(v =>
+  const usable = ranked.filter(v => {
+    if (v.localService) return true;
+    const known = voiceProbeCache.get(v.voiceURI);
+    if (known === undefined) probeVoice(v);
+    return known === true;
+  });
+  sel.innerHTML = usable.map(v =>
     '<option value="' + esc(v.voiceURI) + '">' + esc(v.name) + " · " + esc(v.lang) +
     (v.localService ? "" : " (network)") + "</option>"
   ).join("");
-  if (!settings.voiceURI && ranked.length) { settings.voiceURI = ranked[0].voiceURI; saveSettings(); }
+  // a previously-picked voice that just failed its probe can't stay selected
+  if (settings.voiceURI && voiceProbeCache.get(settings.voiceURI) === false) settings.voiceURI = "";
+  if (!settings.voiceURI && usable.length) { settings.voiceURI = usable[0].voiceURI; saveSettings(); }
   if (settings.voiceURI) sel.value = settings.voiceURI;
 }
 function currentVoice() {
@@ -1925,21 +1966,21 @@ function clearInterp() { clearTimeout(interpTimer); interpTimer = null; }
 
 /* interpolation drives the highlight when the engine reports no word boundaries,
    and is corrected at every chunk end so error never accumulates */
-function startInterp(chunk) {
+function startInterp(chunk, fromWord = 0) {
   clearInterp();
   const cps = charsPerSec || (15 * speechRate());
-  const total = (chunk.text.length / cps) * 1000;
-  let w = 0;
+  const msPerChar = 1000 / cps;
+  let w = fromWord;
   const step = () => {
     if (!ttsOn || boundaryMode || ttsChunk !== chunk) return;
     w++;
     if (w >= chunk.count) return;
     ttsAdvanceTo(chunk, w);
-    const share = ((chunk.offsets[w + 1] || chunk.text.length) - chunk.offsets[w]) / chunk.text.length;
-    interpTimer = setTimeout(step, Math.max(30, total * share));
+    const share = (chunk.offsets[w + 1] || chunk.text.length) - chunk.offsets[w];
+    interpTimer = setTimeout(step, Math.max(30, share * msPerChar));
   };
-  const first = (chunk.offsets[1] || chunk.text.length) / chunk.text.length;
-  interpTimer = setTimeout(step, Math.max(30, total * first));
+  const firstChars = (chunk.offsets[w + 1] || chunk.text.length) - (chunk.offsets[w] || 0);
+  interpTimer = setTimeout(step, Math.max(30, firstChars * msPerChar));
 }
 
 function updateReadout() {
@@ -1971,7 +2012,7 @@ function makeUtterance(chunk) {
     clearInterp();
     clearTimeout(boundaryWatch);
     ttsAdvanceTo(chunk, chunkWordAt(chunk, e.charIndex || 0));
-    boundaryWatch = setTimeout(() => { boundaryMode = false; startInterp(chunk); }, 1400);
+    boundaryWatch = setTimeout(() => { boundaryMode = false; startInterp(chunk, idx - chunk.start); }, 1400);
   };
   u.onend = () => {
     if (!ttsOn) return;
