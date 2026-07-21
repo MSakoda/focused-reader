@@ -1842,11 +1842,26 @@ function speechAvailable() { return typeof speechSynthesis !== "undefined"; }
 /* network voices call out to a remote TTS backend that may be unreachable (offline,
    firewall, browser policy); the engine then just drops the utterance with no error.
    probe each network voice once with a silent utterance so unusable ones never
-   show up in the list at all. */
+   show up in the list at all. browsers also withhold network-backed speech until
+   the page has had a real user gesture, so probing can't start before then —
+   otherwise every network voice fails the probe regardless of whether it works. */
+let hasUserGesture = false;
 const voiceProbeCache = new Map(); // voiceURI -> true/false, settled only
 const voiceProbePending = new Set();
+(function armGestureListener() {
+  const mark = () => {
+    if (hasUserGesture) return;
+    hasUserGesture = true;
+    window.removeEventListener("pointerdown", mark);
+    window.removeEventListener("keydown", mark);
+    voiceProbeCache.clear(); // discard any premature verdicts from before the gesture
+    loadVoices();
+  };
+  window.addEventListener("pointerdown", mark, { once: true });
+  window.addEventListener("keydown", mark, { once: true });
+})();
 function probeVoice(v) {
-  if (voiceProbePending.has(v.voiceURI)) return;
+  if (!hasUserGesture || voiceProbePending.has(v.voiceURI)) return;
   voiceProbePending.add(v.voiceURI);
   const u = new SpeechSynthesisUtterance(" ");
   u.voice = v;
