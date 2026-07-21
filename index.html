@@ -1498,8 +1498,8 @@ document.getElementById("searchInput").addEventListener("input", e => {
 const followScroll = document.getElementById("followScroll");
 const followContent = document.getElementById("followContent");
 const followBack = document.getElementById("followBack");
-const FW_MAX = 6000, FW_BATCH = 1500, FW_BACK = 2000, FW_EDGE = 400;
-let fwStart = 0, fwEnd = 0, fwLastRead = -1, fwTicking = false, fwUserScrolled = false;
+const FW_MAX = 6000, FW_BATCH = 1500, FW_BACK = 2000, FW_EDGE = 400, FW_RESUME_MS = 3000;
+let fwStart = 0, fwEnd = 0, fwLastRead = -1, fwTicking = false, fwUserScrolled = false, fwUserScrolledAt = 0;
 
 function followBuild() {
   const words = book.words, paraSet = book.paraSet;
@@ -1581,6 +1581,12 @@ function renderFollow() {
   fwLastRead = idx;
   const el = followContent.querySelector('.fw-word[data-i="' + idx + '"]');
   if (el) el.classList.add("fw-cur");
+  // a stray touch (thumb resting on the screen, adjusting grip) trips the same
+  // "user scrolled away" flag as a deliberate scroll, and previously that
+  // disabled auto-follow for the rest of playback — the current word marches
+  // on out of view while narration keeps going, looking exactly like a freeze.
+  // let it self-heal once the reader's been hands-off for a bit.
+  if (playing && fwUserScrolled && Date.now() - fwUserScrolledAt > FW_RESUME_MS) fwUserScrolled = false;
   if (playing && !fwUserScrolled) followAutoScroll(false);
   else updateFollowBack();
 }
@@ -1613,8 +1619,8 @@ followScroll.addEventListener("click", e => {
   fwUserScrolled = false;
   updateFollowBack();
 });
-followScroll.addEventListener("wheel", () => { if (playing) fwUserScrolled = true; }, { passive: true });
-followScroll.addEventListener("touchmove", () => { if (playing) fwUserScrolled = true; }, { passive: true });
+followScroll.addEventListener("wheel", () => { if (playing) { fwUserScrolled = true; fwUserScrolledAt = Date.now(); } }, { passive: true });
+followScroll.addEventListener("touchmove", () => { if (playing) { fwUserScrolled = true; fwUserScrolledAt = Date.now(); } }, { passive: true });
 followBack.addEventListener("click", () => { fwUserScrolled = false; followAutoScroll(true); });
 
 /* export modal */
