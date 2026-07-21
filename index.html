@@ -1672,7 +1672,17 @@ function fsSupported() {
 function fsActive() {
   return !!(document.fullscreenElement || document.webkitFullscreenElement);
 }
+/* the fullscreen transition itself makes some browsers briefly report
+   document.hidden = true, as if the tab were backgrounded. without this guard
+   that trips the visibilitychange handler below and pauses mid-transition —
+   narration keeps sounding for a moment (cancel() isn't instant on every
+   platform) while ttsOn=false means the boundary/interp callbacks that move
+   the highlight have already gone silent, so the word freezes but the voice
+   doesn't. */
+let fsTransitioning = false;
+function markFsTransitionDone() { setTimeout(() => { fsTransitioning = false; }, 600); }
 async function enterFullscreen() {
+  fsTransitioning = true;
   document.body.classList.add("fs");
   const el = document.documentElement;
   try {
@@ -1682,8 +1692,10 @@ async function enterFullscreen() {
     console.warn("fullscreen refused", e);
   }
   refreshLayout();
+  markFsTransitionDone();
 }
 async function exitFullscreen() {
+  fsTransitioning = true;
   document.body.classList.remove("fs");
   try {
     if (document.exitFullscreen && document.fullscreenElement) await document.exitFullscreen();
@@ -1692,6 +1704,7 @@ async function exitFullscreen() {
     console.warn(e);
   }
   refreshLayout();
+  markFsTransitionDone();
 }
 /* the visible area changes size going in and out, so the text modes need a
    remeasure or lines wrap against stale metrics */
@@ -1727,7 +1740,7 @@ document.getElementById("backBtn").addEventListener("click", () => {
 
 window.addEventListener("beforeunload", () => { saveProgress(true); clockStop(); });
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) { pause(); cloudPush(true); }
+  if (document.hidden && !fsTransitioning) { pause(); cloudPush(true); }
 });
 
 /* ============ Reading stats ============ */
