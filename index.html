@@ -1348,6 +1348,17 @@ document.querySelectorAll(".mode-btn").forEach(b => {
     if (book) renderWord();
   });
 });
+document.querySelectorAll(".narr-btn").forEach(b => {
+  b.addEventListener("click", () => {
+    const on = b.dataset.narr === "1";
+    if (settings.narration === on) return;
+    settings.narration = on;
+    saveSettings();
+    syncSettingUI();
+    queueSettingsPush();
+    if (playing) { pause(); play(); }
+  });
+});
 document.getElementById("settingsOpen").addEventListener("click", openSettings);
 document.getElementById("settingsOpenLib").addEventListener("click", openSettings);
 function openSettings() {
